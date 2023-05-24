@@ -1,0 +1,12 @@
+
+# datasets
+datasets/
+
+# outputs
+*/cache/
+*/scores/
+runs/
+*/output/
+
+# cache files
+*__pycache__
