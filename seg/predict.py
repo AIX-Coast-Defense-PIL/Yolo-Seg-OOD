@@ -34,7 +34,7 @@ SEGMENTATION_COLORS = np.array([
 
 DATASET_DIR = '/home/leeyoonji/workspace/git/datasets/SeaShips/JPEGImages'
 YOLO_PREDS_DIR = '/home/leeyoonji/workspace/Yolo-Seg-OOD/datasets/seaships'
-SEG_WEIGHT = '/home/leeyoonji/workspace/git/WaSR/nex_output/wodis_mastr1478/20230412132104_cwsl_brightness/checkpoints/epoch=82-step=12200.ckpt'
+SEG_WEIGHT = '/home/snu/workspace/yoonji/Segmentation-WaSR/WaSR/output/logs/wodis_mastr1478/20230412132104_cwsl_brightness/checkpoints/epoch=82-step=12200.ckpt'
 OUTPUT_DIR = os.path.join(work_path, 'seg/output/wodis_seaships')
 BATCH_SIZE = 1
 MODEL = 'wodis'
