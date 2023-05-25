@@ -24,6 +24,15 @@ delete `*.cache` files if they exist in the `.\datasets\*` directory
 python detect.py
 ```
 
+
+### Segmentation
+- bbox filtering
+```
+cd seg
+python predict.py
+```
+
+
 ### OOD
 - install requirements.txt
 ```

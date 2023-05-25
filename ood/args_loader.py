@@ -5,7 +5,7 @@ def get_args(root):
     parser = argparse.ArgumentParser(description='OOD detection')
 
     # learning setting
-    parser.add_argument('--feat', default=True, type=bool, help='image feature is not exist. So need to make')
+    parser.add_argument('--feat', default=True, type=bool, help='image feature does not exist. So need to make')
     parser.add_argument('--mode', default='both', type=str, choices=['train', 'test', 'both'], help='train or eval')
     parser.add_argument('--train_bs', default=2, type=int, help='training batch size')
     parser.add_argument('--gpu', default=0, type=int, help='gpu number')

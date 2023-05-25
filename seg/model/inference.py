@@ -1,4 +1,5 @@
 from PIL import Image
+import numpy as np
 
 import torch
 import torchvision.transforms.functional as TF
@@ -6,6 +7,9 @@ import torchvision.transforms.functional as TF
 from .utils import tensor_map
 import warnings
 from .metrics import PixelAccuracy, ClassIoU
+from .processing import ground_sky_filtering
+
+from seg.data.data_loader import seg_preprocessing
 
 class Predictor():
     def __init__(self, model, half_precision=False, eval_mode=False, model_name='wasr_resnet101'):
@@ -86,6 +90,25 @@ class Predictor():
 
         return {'accuracy':self.accuracy.compute(), 'iou_obstacle':self.iou_0.compute(), 
                 'iou_water':self.iou_1.compute(), 'iou_sky':self.iou_2.compute()}
+
+    def bbox_filtering(self, im0s, img_size=(640, 640), stride=32):
+        if len(im0s.shape) == 3:
+            im0s = np.expand_dims(im0s, axis=0)
+
+        # Preprocessing for Segmentation
+        img = []
+        for im0 in im0s:
+            img.append(seg_preprocessing(im0, img_size=img_size, stride=stride))
+
+        # Segmentation Inference
+        seg_preds = self.predict_batch({'image': torch.stack(img, dim=0)})
+
+        # Binary Mask (Ground&Sky pixels = 1 / other pixels = 0)
+        ground_sky_bin = []
+        for seg_pred in seg_preds:
+            ground_sky_bin.append(ground_sky_filtering(seg_pred, im0s.shape[1:3]))
+        
+        return ground_sky_bin
 
 
 try:

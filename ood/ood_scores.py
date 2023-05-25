@@ -68,5 +68,3 @@ def calc_distance_score(cluster, feat_log, method, mode=None, save_path=None):
 if __name__=='__main__':
     # calc_ood_score("cluster", )
     pass
-
-

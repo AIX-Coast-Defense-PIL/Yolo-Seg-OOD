@@ -10,3 +10,6 @@ runs/
 
 # cache files
 *__pycache__
+
+# pt
+*traced_model.pt

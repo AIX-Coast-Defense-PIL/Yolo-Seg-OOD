@@ -9,6 +9,11 @@ import numpy as np
 from numpy import random
 import os
 
+import sys 
+root_path = os.path.join(os.getcwd(), os.pardir) if '/yolov7' in os.getcwd() else os.getcwd()
+root_path = root_path if 'Yolo-Seg-OOD' in root_path else os.path.join(root_path, 'Yolo-Seg-OOD')
+sys.path.append(root_path)
+
 from models.experimental import attempt_load
 from yoloUtils.datasets import LoadStreams, LoadImages
 from yoloUtils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, \
@@ -19,6 +24,13 @@ from yoloUtils.torch_utils import select_device, load_classifier, time_synchroni
 from utils.converter import convert_txt_to_json
 from utils.file_processing import make_path, load_file
 from utils.metrics import calc_iou_performance
+
+import seg.model.models as seg_models
+from seg.model.utils import load_weights
+from seg.model.inference import Predictor
+
+import warnings
+warnings.filterwarnings(action='ignore')
 
 def detect(opt, second_classifier=None):
     save_mode = opt.save_mode
@@ -48,13 +60,18 @@ def detect(opt, second_classifier=None):
         model.half()  # to FP16
 
     # Second-stage classifier
-    classify = True
-    if classify:
-        modelc = second_classifier['model']
-        modelc.to(device).eval()
-        cluster = second_classifier['cluster']
-        second_classify = second_classifier['pred_func']
-        thresholds = second_classifier['thresholds']
+    ## Segmentation
+    seg_model = seg_models.get_model(opt.seg_model, pretrained=False)
+    state_dict = load_weights(opt.seg_weights)
+    seg_model.load_state_dict(state_dict)
+    seg_predictor = Predictor(seg_model, half)
+
+    ## OOD
+    fe_model = second_classifier['model']
+    fe_model.to(device).eval()
+    cluster = second_classifier['cluster']
+    second_classify = second_classifier['pred_func']
+    thresholds = second_classifier['thresholds']
 
     # Set Dataloader
     vid_path, vid_writer = None, None
@@ -66,20 +83,15 @@ def detect(opt, second_classifier=None):
         dataset = LoadImages(source, img_size=imgsz, stride=stride)
 
     # Get names and colors
-    names = model.module.names if hasattr(model, 'module') else model.names
-    ood_names = ['unknown', 'ship']
-    if classify:
-        names = ood_names
+    names = ['unknown', 'ship', 'filtered']
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
 
     # Run inference
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
-    old_img_w = old_img_h = imgsz
-    old_img_b = 1
 
-    t0 = time.time()
-    time_records = [] #{'total':[], 'obj recog':[], 'nms':[], 'ood':[]}
+    t0 = time_synchronized()
+    time_records = []
     
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
@@ -87,14 +99,6 @@ def detect(opt, second_classifier=None):
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
-
-        # Warmup
-        if device.type != 'cpu' and (old_img_b != img.shape[0] or old_img_h != img.shape[2] or old_img_w != img.shape[3]):
-            old_img_b = img.shape[0]
-            old_img_h = img.shape[2]
-            old_img_w = img.shape[3]
-            for i in range(3):
-                model(img, augment=opt.augment)[0]
 
         # Inference
         t1 = time_synchronized()
@@ -108,9 +112,13 @@ def detect(opt, second_classifier=None):
         t3 = time_synchronized()
 
         # Apply Classifier
-        if classify:
-            pred = second_classify(pred, modelc, cluster, thresholds, img, im0s)
+        ground_sky_bin = seg_predictor.bbox_filtering(im0s, img_size=imgsz, stride=stride)
         t4 = time_synchronized()
+        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, thresholds, img, im0s)
+        t5 = time_synchronized()
+
+        totalT, objT, nmsT, segT, oodT = t5-t1, t2-t1, t3-t2, t4-t3, t5-t4
+        time_records.append([totalT, objT, nmsT, segT, oodT])
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -150,10 +158,7 @@ def detect(opt, second_classifier=None):
                             # plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
 
             # Print time (inference + NMS)
-            # totalT, objT, nmsT, oodT = 1E3*(t4-t1), 1E3*(t2-t1), 1E3*(t3-t2), 1E3*(t4-t3)
-            totalT, objT, nmsT, oodT = t4-t1, t2-t1, t3-t2, t4-t3
-            print(f'{s}Done. ({(1E3 * totalT):.1f}ms, {(1/totalT):.1f} fps) total, ({(1E3 * objT):.1f}ms) object recognize, ({(1E3 *nmsT):.1f}ms) NMS, ({(1E3*oodT):.1f}ms) ood,')
-            time_records.append([totalT, objT, nmsT, oodT])
+            print(f'{s}Done. ({(1E3 * totalT):.1f}ms, {(1/totalT):.1f} fps) Total, ({(1E3 * objT):.1f}ms) Object Recognize, ({(1E3 *nmsT):.1f}ms) NMS, ({(1E3 *segT):.1f}ms) BBox filtering, ({(1E3*oodT):.1f}ms) OOD,')
 
             # Stream results
             if view_img:
@@ -198,17 +203,17 @@ def detect(opt, second_classifier=None):
         
         # calc precision and recall
         performance = calc_iou_performance(ood_infos, ann_infos)
-        print(performance)
+        print('\n', performance)
 
 
-    print(f'Done. ({time.time() - t0:.3f}s)')
-    mTotalT, mObjT, mNmsT, mOodT = np.mean(time_records, axis=0)
-    print(f'mean time per frame : ({(1E3 * mTotalT):.1f}ms, {(1/mTotalT):.1f} fps) total, ({(1E3 * mObjT):.1f}ms) object recognize, ({(1E3 *mNmsT):.1f}ms) NMS, ({(1E3*mOodT):.1f}ms) ood,')
+    print(f'Done. ({time_synchronized() - t0:.3f}s)')
+    mTotalT, mObjT, mNmsT, mSegT, mOodT = np.mean(time_records, axis=0)
+    print(f'mean time per frame : ({(1E3 * mTotalT):.1f}ms, {(1/mTotalT):.1f} fps) Total, ({(1E3 * mObjT):.1f}ms) Object Recognize, ({(1E3 *mNmsT):.1f}ms) NMS, ({(1E3 *mSegT):.1f}ms) BBox Filtering, ({(1E3*mOodT):.1f}ms) OOD,')
 
 def set_yolo_args(dataset, datatype):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default=f'../datasets/{dataset}/{datatype}s', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--weights', nargs='+', type=str, default='./yolov7/yolov7.pt', help='model.pt path(s)')
+    parser.add_argument('--source', type=str, default=f'./datasets/{dataset}/{datatype}s', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.05, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.001, help='IOU threshold for NMS')
@@ -222,10 +227,13 @@ def set_yolo_args(dataset, datatype):
     parser.add_argument('--agnostic-nms', default=True, help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--update', action='store_true', help='update all models')
-    parser.add_argument('--project', default='../runs/detect', help='save results to project/name')
+    parser.add_argument('--project', default='./runs/detect', help='save results to project/name')
     parser.add_argument('--name', default=dataset, help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
+    parser.add_argument("--seg_model", type=str, choices=seg_models.model_list, default='wodis', help="Model architecture.")
+    parser.add_argument("--seg_weights", type=str, help="Path to the model weights or a model checkpoint.",
+                        default=os.path.join(root_path, './seg/weights/20230412132104_wodis_cwsl_brightness.ckpt'))
     opt = parser.parse_args()
     print(opt)
 

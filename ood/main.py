@@ -42,6 +42,7 @@ def seed_setting(num):  # 이해, 정리 x
 def load_model(args):
     if args.backbone_arch == 'resnet50':
         model = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
+        # model = torchvision.models.resnet50(pretrained=True)
     elif args.backbone_arch == 'resnet50_tune':
         load_path = os.path.join(args.backbone_dir, f'{args.backbone_name}.pth')
         ckpt = torch.load(load_path)

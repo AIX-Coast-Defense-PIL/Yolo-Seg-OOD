@@ -10,7 +10,7 @@ import json
 
 import sys 
 work_path = os.path.join(os.getcwd(), os.pardir) if '/seg' in os.getcwd() else os.getcwd()
-work_path = os.getcwd() if 'Yolo-Seg-OOD' in os.getcwd() else os.path.join(os.getcwd(), 'Yolo-Seg-OOD')
+work_path = work_path if 'Yolo-Seg-OOD' in work_path else os.path.join(work_path, 'Yolo-Seg-OOD')
 sys.path.append(work_path)
 sys.path.append(os.path.join(work_path, 'yolov7'))
 
@@ -34,8 +34,8 @@ SEGMENTATION_COLORS = np.array([
 
 DATASET_DIR = '/home/leeyoonji/workspace/git/datasets/SeaShips/JPEGImages'
 YOLO_PREDS_DIR = '/home/leeyoonji/workspace/Yolo-Seg-OOD/datasets/seaships'
-SEG_WEIGHT = '/home/snu/workspace/yoonji/Segmentation-WaSR/WaSR/output/logs/wodis_mastr1478/20230412132104_cwsl_brightness/checkpoints/epoch=82-step=12200.ckpt'
-OUTPUT_DIR = os.path.join(work_path, 'seg/output/wodis_seaships')
+SEG_WEIGHT = os.path.join(work_path, './seg/weights/20230412132104_wodis_cwsl_brightness.ckpt')
+OUTPUT_DIR = os.path.join(work_path, './seg/output/wodis_seaships')
 BATCH_SIZE = 1
 MODEL = 'wodis'
 
@@ -101,15 +101,12 @@ def predict(args):
             img_name = features['img_name'][b_idx]
             # print(img_name)
 
-            seg_pred = SEGMENTATION_COLORS[seg_pred] # (0 = obstacles, 1 = water, 2 = sky)
-            obs_bin = np.uint8(np.where(seg_pred[:,:,0]==247,1,0)) # binary (obstacle=1, others(sky,sea)=0)
-
             # Rescale boxes from original image shape to seg_pred size
             yolo_pred_cp = yolo_pred.copy()
-            yolo_pred_cp[:, 1:5] = scale_coords(ori_shape, yolo_pred_cp[:, 1:5], obs_bin.shape).round()
+            yolo_pred_cp[:, 1:5] = scale_coords(ori_shape, yolo_pred_cp[:, 1:5], seg_pred.shape).round()
 
             ## yolo predictions(bbox) Filtering
-            ground_sky_bin = ground_sky_filtering(seg_pred, obs_bin)
+            ground_sky_bin = ground_sky_filtering(seg_pred)
             for y_idx, yolo_info in enumerate(yolo_pred_cp):
                 if not ground_sky_bin[int(yolo_info[2]):int(yolo_info[4]), int(yolo_info[1]):int(yolo_info[3])].all():
                     jdict.append({'image_id': os.path.splitext(img_name)[0],
@@ -127,6 +124,7 @@ def predict(args):
             
             # save results
             if args.save_results:
+                seg_pred = SEGMENTATION_COLORS[seg_pred] # (0 = obstacles, 1 = water, 2 = sky)
                 mask_img = Image.fromarray(seg_pred)
                 mask_img.save(output_dir / 'seg_pred' / img_name)
                 obs_img = Image.fromarray(np.uint8(ground_sky_bin)*255)

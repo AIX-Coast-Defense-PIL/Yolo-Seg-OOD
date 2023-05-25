@@ -9,7 +9,7 @@ import yaml
 import json
 import cv2
 
-from .transforms import get_image_resize
+from .transforms import get_image_resize, PytorchHubNormalization
 
 def read_mask(path):
     """Reads class segmentation mask from an image file."""
@@ -48,6 +48,18 @@ def refine_yolo_preds(yolo_preds, yolo_thres):
                 yolo_preds_dict[image_id].append([category_id, *bbox, score])
             else: yolo_preds_dict[image_id] = [[category_id, *bbox, score]]
     return yolo_preds_dict, len_yolo_preds
+
+def seg_preprocessing(img, img_size=(640, 640), stride=32):
+    # Image Resize
+    resize_shape = letterbox_shape(img.shape[:2], new_shape=img_size, stride=stride)  # letterboxed shape
+    data = get_image_resize(*resize_shape)({'image': img})
+    img = data['image']
+
+    # Normalization
+    normalize_t = PytorchHubNormalization()
+    img = normalize_t(img)
+
+    return img
 
 def letterbox_shape(ori_shape, new_shape=(640, 640), auto=True, scaleFill=False, scaleup=True, stride=32):
     # ori_shape: (h, w)

@@ -153,4 +153,3 @@ if __name__ == '__main__':
 
     # convert_annForm_bbox2img(bbox_infos)
     # convert_annForm_img2bbox(img_infos)
-

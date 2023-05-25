@@ -22,7 +22,7 @@ class baseline(nn.Module):
     def __init__(self, pretrainined=True):
         super(baseline, self).__init__()
         self.features = models.resnet101(pretrained=pretrainined)
-        self.features.load_state_dict(torch.load('/home/leeyoonji/workspace/git/WaSR/xception_model.pth'))  # the resent-101 weight directory
+        self.features.load_state_dict(torch.load('./seg/weights/xception_model.pth'))  # the resent-101 weight directory
         self.conv1 = self.features.conv1
         self.bn1 = self.features.bn1
         self.relu = self.features.relu
