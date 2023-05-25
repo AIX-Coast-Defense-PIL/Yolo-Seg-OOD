@@ -12,4 +12,5 @@ runs/
 *__pycache__
 
 # pt
+*/weights/
 *traced_model.pt

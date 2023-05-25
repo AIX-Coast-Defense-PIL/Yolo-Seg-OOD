@@ -27,6 +27,7 @@ python detect.py
 
 ### Segmentation
 - bbox filtering
+    - download weights(wodis and backbone) on the [drive](https://drive.google.com/drive/folders/1Vk7luLxkpqvMdB6wZYayTKl_y5vYNcbT?usp=sharing)
 ```
 cd seg
 python predict.py
