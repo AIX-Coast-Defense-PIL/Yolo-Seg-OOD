@@ -32,10 +32,10 @@ SEGMENTATION_COLORS = np.array([
     [90, 75, 164]
 ], np.uint8)
 
-DATASET_DIR = '/home/leeyoonji/workspace/git/datasets/SeaShips/JPEGImages'
-YOLO_PREDS_DIR = '/home/leeyoonji/workspace/Yolo-Seg-OOD/datasets/seaships'
+DATASET_DIR = '/home/leeyoonji/workspace/Yolo-Seg-OOD/datasets/custom102/images'
+YOLO_PREDS_DIR = '/home/leeyoonji/workspace/Yolo-Seg-OOD/datasets/custom102'
 SEG_WEIGHT = os.path.join(work_path, './seg/weights/20230412132104_wodis_cwsl_brightness.ckpt')
-OUTPUT_DIR = os.path.join(work_path, './seg/output/wodis_seaships')
+OUTPUT_DIR = os.path.join(work_path, './seg/output/wodis_custom102')
 BATCH_SIZE = 1
 MODEL = 'wodis'
 
@@ -114,7 +114,7 @@ def predict(args):
                                   'bbox': yolo_pred[y_idx, 1:5].tolist(),
                                   'score': yolo_info[5]})
                     if args.save_results:
-                        pred_draw.rectangle(yolo_pred[y_idx, 1:5].tolist(), outline=(0,255,0), width = 3)
+                        pred_draw.rectangle(yolo_pred[y_idx, 1:5].tolist(), outline=(255,0,0), width = 3)
                 else: 
                     # print(img_name)
                     len_filtered += 1
