@@ -13,4 +13,5 @@ runs/
 
 # pt
 */weights/
+ood/backbone/
 *traced_model.pt

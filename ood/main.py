@@ -44,12 +44,12 @@ def load_model(args):
         model = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
         # model = torchvision.models.resnet50(pretrained=True)
     elif args.backbone_arch == 'resnet50_tune':
-        load_path = os.path.join(args.backbone_dir, f'{args.backbone_name}.pth')
-        ckpt = torch.load(load_path)
+        load_path = os.path.join(args.backbone_weight)
+        ckpt = torch.load(load_path).state_dict()
         model = torchvision.models.resnet50()
-        model.load_state_dict(ckpt['model'])
+        model.load_state_dict(ckpt)
     else:
-        print('wrong backbone_arch name')
+        print('wrong backbone_arch')
     
     state_dict = {k:model.state_dict()[k] for k in model.state_dict() if not k in ['fc.bias', 'fc.weight']}
     model.load_state_dict(state_dict, strict=False)

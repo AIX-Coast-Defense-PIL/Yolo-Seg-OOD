@@ -14,7 +14,7 @@ from torchvision.utils import save_image
 
 class YoloOutputDataset(Dataset):
     def __init__(self, data_dir_path, transform=None, threshold=0.05):
-        with open(os.path.join(data_dir_path, 'yolov7_preds/yolov7_predictions.json'), "r") as json_file:
+        with open(os.path.join(data_dir_path, 'yolov7_preds/yolov7_preds_refined.json'), "r") as json_file:
             self.bbox_infos = json.load(json_file)
         
         self.bbox_infos = [ bbox_info for bbox_info in self.bbox_infos if bbox_info['score']>= threshold ]

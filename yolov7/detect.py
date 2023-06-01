@@ -32,16 +32,14 @@ from seg.model.inference import Predictor
 import warnings
 warnings.filterwarnings(action='ignore')
 
-def detect(opt, second_classifier=None):
-    save_mode = opt.save_mode
-    source, weights, view_img, save_txt, calc_performance, imgsz, trace = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.calc_performance, opt.img_size, not opt.no_trace
-    save_img = not opt.nosave and not source.endswith('.txt')  # save inference images
-    webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
+def detect(opt, second_classifier):
+    save_img = not opt.nosave and not opt.source.endswith('.txt')  # save inference images
+    webcam = opt.source.isnumeric() or opt.source.endswith('.txt') or opt.source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
 
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
-    (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    (save_dir / 'labels' if opt.save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
     # Initialize
     set_logging()
@@ -49,11 +47,11 @@ def detect(opt, second_classifier=None):
     half = device.type != 'cpu'  # half precision only supported on CUDA
 
     # Load model
-    model = attempt_load(weights, map_location=device)  # load FP32 model
+    model = attempt_load(opt.weights, map_location=device)  # load FP32 model
     stride = int(model.stride.max())  # model stride
-    imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    imgsz = check_img_size(opt.img_size, s=stride)  # check img_size
 
-    if trace:
+    if not opt.no_trace:
         model = TracedModel(model, device, opt.img_size)
 
     if half:
@@ -67,24 +65,24 @@ def detect(opt, second_classifier=None):
     seg_predictor = Predictor(seg_model, half)
 
     ## OOD
-    fe_model = second_classifier['model']
+    fe_model = second_classifier['backbone_model']
     fe_model.to(device).eval()
     cluster = second_classifier['cluster']
     second_classify = second_classifier['pred_func']
     thresholds = second_classifier['thresholds']
 
     # Set Dataloader
+    view_img = opt.view_img
     vid_path, vid_writer = None, None
     if webcam:
         view_img = check_imshow()
         cudnn.benchmark = True  # set True to speed up constant image size inference
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride)
+        dataset = LoadStreams(opt.source, img_size=imgsz, stride=stride)
     else:
-        dataset = LoadImages(source, img_size=imgsz, stride=stride)
+        dataset = LoadImages(opt.source, img_size=imgsz, stride=stride)
 
     # Get names and colors
-    names = ['unknown', 'ship', 'filtered']
-    colors = [[random.randint(0, 255) for _ in range(3)] for _ in names]
+    names = ['unknown', 'known', 'filtered']
 
     # Run inference
     if device.type != 'cpu':
@@ -114,7 +112,7 @@ def detect(opt, second_classifier=None):
         # Apply Classifier
         ground_sky_bin = seg_predictor.bbox_filtering(im0s, img_size=imgsz, stride=stride)
         t4 = time_synchronized()
-        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, thresholds, img, im0s)
+        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, thresholds, img, im0s, opt.score_matrix, opt.cov_matrix_path)
         t5 = time_synchronized()
 
         totalT, objT, nmsT, segT, oodT = t5-t1, t2-t1, t3-t2, t4-t3, t5-t4
@@ -145,7 +143,7 @@ def detect(opt, second_classifier=None):
 
                 # Write results
                 for *xyxy, conf, cls in reversed(det):
-                    if save_txt:  # Write to file
+                    if opt.save_txt:  # Write to file
                         xyxy = (torch.tensor(xyxy).view(1, 4).to(torch.int32)).view(-1).tolist()
                         line = (cls, *xyxy, conf)  # label format
                         with open(txt_path + '.txt', 'a') as f:
@@ -167,10 +165,10 @@ def detect(opt, second_classifier=None):
 
             # Save results (image with detections)
             if save_img:
-                if save_mode in ['image', 'both']:
+                if dataset.mode == 'image':
                     cv2.imwrite(save_path, im0)
                     print(f" The image with the result is saved in: {save_path}")
-                if save_mode in ['video', 'both', 'stream']:  # 'video' or 'stream'
+                elif dataset.mode in ['video', 'stream']:
                     if vid_path != video_path:  # new video
                         vid_path = video_path
                         if isinstance(vid_writer, cv2.VideoWriter):
@@ -184,12 +182,13 @@ def detect(opt, second_classifier=None):
                         video_path += '.mp4'
                         vid_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
+    print('\n')
 
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+    if opt.save_txt or save_img:
+        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if opt.save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
     
-    if calc_performance:
+    if opt.calc_performance:
         # save json
         txt_dir = str(save_dir / 'labels')
         json_dir = str(save_dir / 'json')
@@ -198,28 +197,28 @@ def detect(opt, second_classifier=None):
             
         # call and set format of pred_infos & ann_infos
         ood_infos = load_file(os.path.join(json_dir, 'preds.json'))
-        ann_file_path = os.path.join(source, '../annotations/all.json')
+        ann_file_path = os.path.join(opt.source, '../annotations/all.json')
         ann_infos = load_file(ann_file_path)
         
         # calc precision and recall
         performance = calc_iou_performance(ood_infos, ann_infos)
-        print('\n', performance)
+        print(performance)
 
 
     print(f'Done. ({time_synchronized() - t0:.3f}s)')
     mTotalT, mObjT, mNmsT, mSegT, mOodT = np.mean(time_records, axis=0)
     print(f'mean time per frame : ({(1E3 * mTotalT):.1f}ms, {(1/mTotalT):.1f} fps) Total, ({(1E3 * mObjT):.1f}ms) Object Recognize, ({(1E3 *mNmsT):.1f}ms) NMS, ({(1E3 *mSegT):.1f}ms) BBox Filtering, ({(1E3*mOodT):.1f}ms) OOD,')
 
-def set_yolo_args(dataset, datatype):
+
+def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='./yolov7/yolov7.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default=f'./datasets/{dataset}/{datatype}s', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--source', type=str, default='./datasets/custom102/images', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.05, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.001, help='IOU threshold for NMS')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
-    parser.add_argument('--save-mode', default=f'{datatype}', help='save image, video, or both')
     parser.add_argument('--save-txt', default=True, help='save results to *.txt')
     parser.add_argument('--calc-performance', default=False, help='save results to preds.json')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
@@ -228,19 +227,32 @@ def set_yolo_args(dataset, datatype):
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--update', action='store_true', help='update all models')
     parser.add_argument('--project', default='./runs/detect', help='save results to project/name')
-    parser.add_argument('--name', default=dataset, help='save results to project/name')
+    parser.add_argument('--name', default='custom102', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
-    parser.add_argument("--seg_model", type=str, choices=seg_models.model_list, default='wodis', help="Model architecture.")
-    parser.add_argument("--seg_weights", type=str, help="Path to the model weights or a model checkpoint.",
-                        default=os.path.join(root_path, './seg/weights/20230412132104_wodis_cwsl_brightness.ckpt'))
+
+    # Segmentation
+    parser.add_argument("--seg_model", default='wodis', type=str, choices=seg_models.model_list, help="Model architecture.")
+    parser.add_argument("--seg_weights", default='./seg/weights/20230412132104_wodis_cwsl_brightness.ckpt',
+                        type=str, help="Path to the model weights or a model checkpoint.")
+    
+    # Feature extractor
+    parser.add_argument('--backbone_arch', default='resnet50_tune', choices=['resnet50', 'resnet50_tune'], type=str, help='')
+    parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
+
+    # OOD
+    parser.add_argument('--cluster_path', default='./ood/cache/cluster/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
+    parser.add_argument('--threshold_path', default='./ood/cache/threshold/kmeans_resnet50_tune_seaships.json', type=str, help='Path to backbone weight')
+    parser.add_argument('--cov_matrix_path', default='./ood/cache/cov_matrix/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
+    parser.add_argument('--score_matrix', default='euclidean', type=str, choices=['euclidean', 'mahalanobis', 'cosineSim'])
+
     opt = parser.parse_args()
     print(opt)
 
     return opt
 
 if __name__ == '__main__':
-    opt = set_yolo_args(dataset='custom102', datatype='image')
+    opt = get_args()
     #check_requirements(exclude=('pycocotools', 'thop'))
 
     with torch.no_grad():

@@ -21,7 +21,7 @@ def ground_sky_filtering(seg_pred, img0_shape=None, surr_sky_ratio_eps = 0.3, wi
         sum_pix = surr_pix.sum()
         surr_pix = np.multiply(seg_pred, surr_pix.astype(int))
         if surr_pix.sum() != 0:
-            if ((surr_pix==90).sum() / sum_pix > surr_sky_ratio_eps) or (w > obs_bin.shape[1]*width_eps): 
+            if ((surr_pix==2).sum() / sum_pix > surr_sky_ratio_eps) or (w > obs_bin.shape[1]*width_eps): 
                 ground_sky_bin += ccl_bin
         
     ground_sky_bin = np.uint8(np.where(ground_sky_bin>0, 1, 0))

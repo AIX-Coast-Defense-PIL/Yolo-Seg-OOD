@@ -7,17 +7,17 @@ def get_args(root):
     # learning setting
     parser.add_argument('--feat', default=True, type=bool, help='image feature does not exist. So need to make')
     parser.add_argument('--mode', default='both', type=str, choices=['train', 'test', 'both'], help='train or eval')
-    parser.add_argument('--train_bs', default=2, type=int, help='training batch size')
+    parser.add_argument('--train_bs', default=16, type=int, help='training batch size')
     parser.add_argument('--gpu', default=0, type=int, help='gpu number')
 
     # data path
     parser.add_argument('--data_root', default=os.path.join(root, 'datasets'), type=str, help='root directory path of all data')
     parser.add_argument('--train_data', default='seaships', type=str, choices=['coco', 'custom102', 'seaships'])
-    parser.add_argument('--test_data', default='custom102', type=str, choices=['coco', 'custom102', 'seaships', 'modd/*'])
+    parser.add_argument('--test_data', default='custom102', type=str, choices=['coco', 'custom102', 'seaships', 'modd/*', 'nexreal/*'])
 
     # model
     parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
-    parser.add_argument('--backbone_dir', default='./backbone', type=str, help='')
+    parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
 
     # cluster
     parser.add_argument('--cluster', default='kmeans', type=str, choices=['kmeans', 'GM'])

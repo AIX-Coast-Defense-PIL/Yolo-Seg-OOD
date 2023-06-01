@@ -5,9 +5,8 @@ import os
 
 from yolov7.yoloUtils.general import xyxy2xywh, xywh2xyxy, scale_coords
 from ood.ood_scores import calc_distance_score
-from ood.args_loader import get_args
 
-def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, thresholds, img, im0):
+def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, thresholds, img, im0, score_matrix, cov_matrix_path):
     # applies a second stage classifier to yolo outputs
     im0 = [im0] if isinstance(im0, np.ndarray) else im0
 
@@ -45,9 +44,8 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, thresholds,
                 # ood classify
                 feats = fe_model(torch.Tensor(ims).to(yolo_pred.device))  # classifier prediction
                 feats = feats.data.cpu().numpy()
-                ood_args = get_args(os.path.join(os.getcwd(), '..'))
-                ood_scores = calc_distance_score(cluster, feats, ood_args.score_matrix, 'test', ood_args.cov_matrix_path)
-                threshold = thresholds['87%']
+                ood_scores = calc_distance_score(cluster, feats, score_matrix, 'test', cov_matrix_path)
+                threshold = thresholds['95%']
                 pred_cls[unfiltered_idx] = torch.Tensor([0 if ood_score > threshold else 1 for ood_score in ood_scores])
             
             # x[i][:, 4] = torch.Tensor(ood_scores) # change conf to ood_scores
