@@ -45,7 +45,7 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, thresholds,
                 feats = fe_model(torch.Tensor(ims).to(yolo_pred.device))  # classifier prediction
                 feats = feats.data.cpu().numpy()
                 ood_scores = calc_distance_score(cluster, feats, score_matrix, 'test', cov_matrix_path)
-                threshold = thresholds['95%']
+                threshold = thresholds['18%']
                 pred_cls[unfiltered_idx] = torch.Tensor([0 if ood_score > threshold else 1 for ood_score in ood_scores])
             
             # x[i][:, 4] = torch.Tensor(ood_scores) # change conf to ood_scores
