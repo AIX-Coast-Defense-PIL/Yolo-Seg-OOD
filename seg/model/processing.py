@@ -29,6 +29,5 @@ def ground_sky_filtering(seg_pred, img0_shape=None, surr_sky_ratio_eps = 0.3, wi
     if img0_shape is not None:
         ground_sky_bin = cv2.resize(ground_sky_bin.astype('float32'), img0_shape[::-1])
         ground_sky_bin = np.uint8(np.where(ground_sky_bin>=0.5, 1, 0)) # mask binary
-        print()
     
     return np.uint8(ground_sky_bin)
