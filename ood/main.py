@@ -58,10 +58,10 @@ def load_model(args):
 
 def get_bbox_infos(args, mode, feat_path, model, cluster=None, threshold=None):
     if mode == 'train':
-        if os.path.exists(feat_path):
-            feat_infos = load_file(feat_path)
-            print(f'Loaded the features from {feat_path}')
-            return feat_infos, {}
+        # if os.path.exists(feat_path):
+        #     feat_infos = load_file(feat_path)
+        #     print(f'Loaded the features from {feat_path}')
+        #     return feat_infos, {}
         data_dir_path = os.path.join(args.data_root, args.train_data)
         data_loader = get_train_loader(data_dir_path, batch_size=args.train_bs)
     elif mode == 'test':
@@ -150,7 +150,7 @@ def ood_train(args):
 
     # find thresholds
     ood_scores = calc_distance_score(cluster, feats, args.score_matrix, 'train', args.cov_matrix_path)
-    ood_scores = sorted(ood_scores)
+    ood_scores = sorted(ood_scores, reverse=True)
     thresholds_in_rate = {str(in_rate)+"%" : round(ood_scores[round((1-(in_rate*0.01)) * len(ood_scores))], 2) for in_rate in range(1, 101, 1)}
     save_file(thresholds_in_rate, args.threshold_path)
     print(f'ood thresholds : {thresholds_in_rate}')

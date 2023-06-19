@@ -91,6 +91,7 @@ def detect(opt, second_classifier):
 
     # Get names and colors
     names = ['unknown', 'known', 'filtered']
+    colors = [[0,0,255], [0, 0, 0], [0, 255, 0]]
 
     # Run inference
     if device.type != 'cpu':
@@ -159,11 +160,8 @@ def detect(opt, second_classifier):
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
-                        if cls == 0:
-                            plot_one_box(xyxy, im0, color=(0,0,255), line_thickness=2)
-                        elif cls == 2:  # filtered bbox
-                            plot_one_box(xyxy, im0, color=(0,0,0), line_thickness=2)
-
+                        label = f'{names[int(cls)]} {conf:.2f}'
+                        plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
 
             im0 = Image.blend(Image.fromarray(BIN_COLORS[ground_sky_bin[0]]), Image.fromarray(im0), 0.6)
 
@@ -225,8 +223,10 @@ def detect(opt, second_classifier):
 
 def get_args():
     parser = argparse.ArgumentParser()
+    dataset = 'nexreal/01'
+    datatype = 'videos'
     parser.add_argument('--weights', nargs='+', type=str, default='./yolov7/yolov7.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='./datasets/custom102/images', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--source', type=str, default=f'./datasets/{dataset}/{datatype}', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.05, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.001, help='IOU threshold for NMS')
@@ -240,7 +240,7 @@ def get_args():
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--update', action='store_true', help='update all models')
     parser.add_argument('--project', default='./runs/detect', help='save results to project/name')
-    parser.add_argument('--name', default='custom102', help='save results to project/name')
+    parser.add_argument('--name', default=dataset, help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
 
@@ -251,17 +251,22 @@ def get_args():
     parser.add_argument('--filter-thres', type=float, default=0.7, help='filtering threshold')
     
     # Feature extractor
-    parser.add_argument('--backbone_arch', default='resnet50_tune', choices=['resnet50', 'resnet50_tune'], type=str, help='')
+    parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
     parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
 
     # OOD
-    parser.add_argument('--ood-thres', type=str, default='87', help='OOD threshold')
+    parser.add_argument('--ood-thres', type=str, default='18', help='OOD threshold')
     parser.add_argument('--cluster_path', default='./ood/cache/cluster/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
     parser.add_argument('--threshold_path', default='./ood/cache/threshold/kmeans_resnet50_tune_seaships.json', type=str, help='Path to backbone weight')
     parser.add_argument('--cov_matrix_path', default='./ood/cache/cov_matrix/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
     parser.add_argument('--score_matrix', default='euclidean', type=str, choices=['euclidean', 'mahalanobis', 'cosineSim'])
 
     opt = parser.parse_args()
+
+    opt.threshold_path = f'./ood/threshold/kmeans_{opt.backbone_arch}_seaships.json'
+    opt.cluster_path = f'./ood/cache/cluster/kmeans_{opt.backbone_arch}_seaships.pkl'
+    opt.cov_matrix_path = f'./ood/cache/cov_matrix/kmeans_{opt.backbone_arch}_seaships.pkl'
+
     print(opt)
 
     return opt

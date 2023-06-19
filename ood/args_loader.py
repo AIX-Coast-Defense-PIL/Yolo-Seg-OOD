@@ -17,7 +17,7 @@ def get_args(root):
 
     # model
     parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
-    parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
+    parser.add_argument('--backbone_weight', default='./backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
 
     # cluster
     parser.add_argument('--cluster', default='kmeans', type=str, choices=['kmeans', 'GM'])
@@ -36,7 +36,7 @@ def get_args(root):
     args.test_feat_path = os.path.join(root, 'ood/cache/feature/', f'test_{args.backbone_arch}_{args.test_data}.pkl')
     args.cluster_path = os.path.join(root, 'ood/cache/cluster/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
     args.cov_matrix_path = os.path.join(root, 'ood/cache/cov_matrix/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
-    args.threshold_path = os.path.join(root, 'ood/cache/threshold/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.json')
+    args.threshold_path = os.path.join(root, 'ood/threshold/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.json')
     args.score_path = os.path.join(root, 'ood/scores/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}_{args.test_data}.pkl')
 
     return args
