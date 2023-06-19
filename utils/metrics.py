@@ -24,6 +24,8 @@ def calc_iou_performance(pred_infos, ann_infos, ood_threshold=None, conf_thresho
     Pos_per_imgs = [0] * len(img_ids) # num of prediction true
 
     for img_idx, img_id in enumerate(img_ids):
+        if img_id in pred_infos.keys():
+            pred_infos[img_id]['bboxes'] = [bbox for bbox in pred_infos[img_id]['bboxes'] if bbox['label'] == 0]
         if (ood_threshold) and (img_id in pred_infos.keys()):
             pred_infos[img_id]['bboxes'] = [bbox for bbox in pred_infos[img_id]['bboxes'] if bbox['ood_score'] > ood_threshold]
         if (conf_threshold) and (img_id in pred_infos.keys()):

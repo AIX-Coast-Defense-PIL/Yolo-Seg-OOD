@@ -93,18 +93,23 @@ class MaSTr1325Dataset(torch.utils.data.Dataset):
         normalize_t (optional): Transform that normalizes the input image
         include_original (optional): Include original (non-normalized) version of the image in the features
     """
-    def __init__(self, dataset_dir, yolo_preds_dir, transform=None, normalize_t=None, normalize_b = None, include_original=False, sort=False, yolo_resize=(None, None), yolo_thres=0.05):
+    def __init__(self, dataset_dir, yolo_preds_dir=None, transform=None, normalize_t=None, normalize_b = None, include_original=False, sort=False, yolo_resize=(None, None), yolo_thres=0.05):
 
         # Set data directories
         self.image_dir = Path(dataset_dir).resolve()
-        self.yolo_preds_dir = Path(yolo_preds_dir).resolve()
+        self.mask_dir = self.image_dir.parent / 'masks'
+        if not self.mask_dir.exists():
+            self.mask_dir = None 
+        self.yolo_preds_dir = Path(yolo_preds_dir).resolve() if yolo_preds_dir is not None else None
         self.images = os.listdir(self.image_dir)
         
         # Load yolo predictions
-        with open((self.yolo_preds_dir / 'yolov7_preds/yolov7_predictions.json').resolve(), "r") as json_file:
-            self.yolo_preds = json.load(json_file)
-        self.yolo_preds, self.len_yolo_preds = refine_yolo_preds(self.yolo_preds, yolo_thres)
-        self.images = [fname for fname in self.images if os.path.splitext(fname)[0] in self.yolo_preds]
+        self.yolo_preds, self.len_yolo_preds = None, None
+        if self.yolo_preds_dir is not None: 
+            with open((self.yolo_preds_dir / 'yolov7_preds/yolov7_predictions.json').resolve(), "r") as json_file:
+                self.yolo_preds = json.load(json_file)
+            self.yolo_preds, self.len_yolo_preds = refine_yolo_preds(self.yolo_preds, yolo_thres)
+            self.images = [fname for fname in self.images if os.path.splitext(fname)[0] in self.yolo_preds]
         
         if sort:
             self.images.sort()
@@ -124,12 +129,19 @@ class MaSTr1325Dataset(torch.utils.data.Dataset):
 
         img_name = self.images[idx]
         img_path = str(self.image_dir / img_name)
+        ext = os.path.splitext(img_name)[-1]
+        mask_filename = img_name.replace(ext, 'm.png')
 
         img = np.array(Image.open(img_path))
         img_original = img
 
         data = {'image': img} # shape: (h, w, ch)
 
+        if self.mask_dir is not None:
+            mask_path = str(self.mask_dir / mask_filename)
+            mask = read_mask(mask_path)
+            data['segmentation'] = mask
+        
         # Transform images if transform is provided
         if self.transform is not None:
             data = self.transform(data)
@@ -157,10 +169,15 @@ class MaSTr1325Dataset(torch.utils.data.Dataset):
             'image': img,
             'img_name': img_name,
             'original_shape': img_original.shape[:2],
-            'yolo_preds': np.array(self.yolo_preds[os.path.splitext(img_name)[0]])
             }
 
         if self.include_original:
             features['image_original'] = torch.from_numpy(img_original.transpose(2,0,1))
+
+        if 'segmentation' in data:
+            features['segmentation'] = torch.from_numpy(data['segmentation'].transpose(2,0,1))
+
+        if self.yolo_preds is not None:
+            features['yolo_preds'] = np.array(self.yolo_preds[os.path.splitext(img_name)[0]])
 
         return features

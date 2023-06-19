@@ -15,3 +15,8 @@ runs/
 */weights/
 ood/backbone/
 *traced_model.pt
+
+# inferface
+*.spec
+build/
+dist/

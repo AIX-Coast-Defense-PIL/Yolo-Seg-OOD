@@ -31,6 +31,14 @@ from seg.model.inference import Predictor
 
 import warnings
 warnings.filterwarnings(action='ignore')
+from PIL import Image, ImageDraw
+
+# Colors corresponding to each segmentation class # (1 = water, 2 = sky, 0 = obstacles)
+BIN_COLORS = np.array([
+    [247, 195, 37],
+    [255, 105, 180],
+], np.uint8)
+
 
 def detect(opt, second_classifier):
     save_img = not opt.nosave and not opt.source.endswith('.txt')  # save inference images
@@ -69,7 +77,7 @@ def detect(opt, second_classifier):
     fe_model.to(device).eval()
     cluster = second_classifier['cluster']
     second_classify = second_classifier['pred_func']
-    thresholds = second_classifier['thresholds']
+    ood_thres = second_classifier['thresholds'][opt.ood_thres+'%']
 
     # Set Dataloader
     view_img = opt.view_img
@@ -113,7 +121,8 @@ def detect(opt, second_classifier):
         # Apply Classifier
         ground_sky_bin = seg_predictor.bbox_filtering(im0s, img_size=imgsz, stride=stride)
         t4 = time_synchronized()
-        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, thresholds, img, im0s, opt.score_matrix, opt.cov_matrix_path)
+        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, ood_thres, 
+                               img, im0s, opt.score_matrix, opt.cov_matrix_path, filter_thres=opt.filter_thres)
         t5 = time_synchronized()
 
         totalT, objT, nmsT, segT, oodT = t5-t1, t2-t1, t3-t2, t4-t3, t5-t4
@@ -132,7 +141,7 @@ def detect(opt, second_classifier):
             save_path = os.path.join(img_dir, p.name.split('.')[0]+'.jpg') # img.jpg
             video_path = str(save_dir / 'video')
             txt_path = str(save_dir / 'labels' / p.stem)  # img.txt
-            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -151,9 +160,10 @@ def detect(opt, second_classifier):
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
-                        # if cls == 0:
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
+
+            im0 = Image.blend(Image.fromarray(BIN_COLORS[ground_sky_bin[0]]), Image.fromarray(im0), 0.6)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * totalT):.1f}ms, {(1/totalT):.1f} fps) Total, ({(1E3 * objT):.1f}ms) Object Recognize, ({(1E3 *nmsT):.1f}ms) NMS, ({(1E3 *segT):.1f}ms) BBox filtering, ({(1E3*oodT):.1f}ms) OOD,')
@@ -166,7 +176,8 @@ def detect(opt, second_classifier):
             # Save results (image with detections)
             if save_img:
                 if dataset.mode == 'image':
-                    cv2.imwrite(save_path, im0)
+                    im0.save(save_path)
+                    # cv2.imwrite(save_path, im0)
                     print(f" The image with the result is saved in: {save_path}")
                 elif dataset.mode in ['video', 'stream']:
                     if vid_path != video_path:  # new video
@@ -237,12 +248,17 @@ def get_args():
     parser.add_argument("--seg_model", default='wodis', type=str, choices=seg_models.model_list, help="Model architecture.")
     parser.add_argument("--seg_weights", default='./seg/weights/20230412132104_wodis_cwsl_brightness.ckpt',
                         type=str, help="Path to the model weights or a model checkpoint.")
+    parser.add_argument('--filter-thres', type=float, default=0.7, help='filtering threshold')
     
     # Feature extractor
     parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
     parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
 
     # OOD
+    parser.add_argument('--ood-thres', type=str, default='18', help='OOD threshold')
+    parser.add_argument('--cluster_path', default='./ood/cache/cluster/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
+    parser.add_argument('--threshold_path', default='./ood/cache/threshold/kmeans_resnet50_tune_seaships.json', type=str, help='Path to backbone weight')
+    parser.add_argument('--cov_matrix_path', default='./ood/cache/cov_matrix/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
     parser.add_argument('--score_matrix', default='euclidean', type=str, choices=['euclidean', 'mahalanobis', 'cosineSim'])
 
     opt = parser.parse_args()

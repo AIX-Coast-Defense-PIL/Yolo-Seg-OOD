@@ -92,7 +92,7 @@ class Predictor():
                 'iou_water':self.iou_1.compute(), 'iou_sky':self.iou_2.compute()}
 
     def bbox_filtering(self, im0s, img_size=(640, 640), stride=32):
-        if len(im0s.shape) == 3:
+        if not isinstance(im0s, list) and (len(im0s.shape) == 3):
             im0s = np.expand_dims(im0s, axis=0)
 
         # Preprocessing for Segmentation
