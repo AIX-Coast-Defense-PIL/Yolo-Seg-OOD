@@ -17,7 +17,7 @@ def get_args(root):
 
     # model
     parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
-    parser.add_argument('--backbone_weight', default='./backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
+    parser.add_argument('--backbone_weight', default='./ood/backbone/resnet_funed_e100.pth', type=str, help='Path to backbone weight')
 
     # cluster
     parser.add_argument('--cluster', default='kmeans', type=str, choices=['kmeans', 'GM'])

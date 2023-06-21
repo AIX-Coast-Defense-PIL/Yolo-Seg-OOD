@@ -58,10 +58,10 @@ def load_model(args):
 
 def get_bbox_infos(args, mode, feat_path, model, cluster=None, threshold=None):
     if mode == 'train':
-        # if os.path.exists(feat_path):
-        #     feat_infos = load_file(feat_path)
-        #     print(f'Loaded the features from {feat_path}')
-        #     return feat_infos, {}
+        if os.path.exists(feat_path):
+            feat_infos = load_file(feat_path)
+            print(f'Loaded the features from {feat_path}')
+            return feat_infos, {}
         data_dir_path = os.path.join(args.data_root, args.train_data)
         data_loader = get_train_loader(data_dir_path, batch_size=args.train_bs)
     elif mode == 'test':

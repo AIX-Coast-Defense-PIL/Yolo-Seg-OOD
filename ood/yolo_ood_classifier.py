@@ -28,7 +28,6 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, ood_thres,
             ims = []
             unfiltered_idx = []
             for idx, bbox in enumerate(yolo_pred):  # per item
-                # bbox value 확인 및 img, im0, filter_mask shape 확인하기 ###########################
                 bbox_sum = filter_mask[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])].sum()
                 bbox_area = (int(bbox[3])-int(bbox[1])) * (int(bbox[2])-int(bbox[0])) + 1e-15
 
@@ -49,7 +48,6 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, ood_thres,
                 feats = fe_model(torch.Tensor(ims).to(yolo_pred.device))  # classifier prediction
                 feats = feats.data.cpu().numpy()
                 ood_scores = calc_distance_score(cluster, feats, score_matrix, 'test', cov_matrix_path)
-                # threshold = thresholds['18%']
                 pred_cls[unfiltered_idx] = torch.Tensor([0 if ood_score > ood_thres else 1 for ood_score in ood_scores])
             
             # x[i][:, 4] = torch.Tensor(ood_scores) # change conf to ood_scores

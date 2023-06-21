@@ -6,8 +6,8 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 import numpy as np
-from numpy import random
 import os
+import platform
 
 import sys 
 root_path = os.path.join(os.getcwd(), os.pardir) if '/yolov7' in os.getcwd() else os.getcwd()
@@ -16,13 +16,13 @@ sys.path.append(root_path)
 
 from models.experimental import attempt_load
 from yoloUtils.datasets import LoadStreams, LoadImages
-from yoloUtils.general import check_img_size, check_requirements, check_imshow, non_max_suppression, \
+from yoloUtils.general import check_img_size, check_imshow, non_max_suppression, \
     scale_coords, strip_optimizer, set_logging, increment_path
 from yoloUtils.plots import plot_one_box
-from yoloUtils.torch_utils import select_device, load_classifier, time_synchronized, TracedModel
+from yoloUtils.torch_utils import select_device, time_synchronized, TracedModel
 
 from utils.converter import convert_txt_to_json
-from utils.file_processing import make_path, load_file
+from utils.file_processing import load_file
 from utils.metrics import calc_iou_performance
 
 import seg.model.models as seg_models
@@ -35,6 +35,7 @@ from PIL import Image, ImageDraw
 
 # Colors corresponding to each segmentation class # (1 = water, 2 = sky, 0 = obstacles)
 BIN_COLORS = np.array([
+    [0, 0, 0],
     [247, 195, 37],
     [255, 105, 180],
 ], np.uint8)
@@ -98,7 +99,8 @@ def detect(opt, second_classifier):
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
 
     t0 = time_synchronized()
-    time_records = []
+    time_records, windows = [], []
+    break_point = False
     
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
@@ -160,18 +162,29 @@ def detect(opt, second_classifier):
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
+                        if (opt.draw_interm) and (int(cls) != 0):
+                            continue
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
 
-            im0 = Image.blend(Image.fromarray(BIN_COLORS[ground_sky_bin[0]]), Image.fromarray(im0), 0.6)
+            if opt.draw_interm:
+                im0 = Image.blend(Image.fromarray(BIN_COLORS[ground_sky_bin[0]]), Image.fromarray(im0), 0.6)
 
             # Print time (inference + NMS)
             print(f'{s}Done. ({(1E3 * totalT):.1f}ms, {(1/totalT):.1f} fps) Total, ({(1E3 * objT):.1f}ms) Object Recognize, ({(1E3 *nmsT):.1f}ms) NMS, ({(1E3 *segT):.1f}ms) BBox filtering, ({(1E3*oodT):.1f}ms) OOD,')
 
             # Stream results
             if view_img:
+                if platform.system() == 'Linux' and p not in windows:
+                    windows.append(p)
+                    cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
+                    cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
                 cv2.imshow(str(p), im0)
-                cv2.waitKey(1)  # 1 millisecond
+                key = cv2.waitKey(1)
+                if key == ord('q'):
+                    cv2.destroyAllWindows()
+                    break_point=True
+                    break
 
             # Save results (image with detections)
             if save_img:
@@ -180,6 +193,7 @@ def detect(opt, second_classifier):
                     # cv2.imwrite(save_path, im0)
                     print(f" The image with the result is saved in: {save_path}")
                 elif dataset.mode in ['video', 'stream']:
+                    im0 = np.asarray(im0)
                     if vid_path != video_path:  # new video
                         vid_path = video_path
                         if isinstance(vid_writer, cv2.VideoWriter):
@@ -193,6 +207,9 @@ def detect(opt, second_classifier):
                         video_path += '.mp4'
                         vid_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
+        if break_point:
+            break
+
     print('\n')
 
     if opt.save_txt or save_img:
@@ -243,6 +260,7 @@ def get_args():
     parser.add_argument('--name', default=dataset, help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
+    parser.add_argument('--draw-interm', default=True, help='save intermediate results')
 
     # Segmentation
     parser.add_argument("--seg_model", default='wodis', type=str, choices=seg_models.model_list, help="Model architecture.")
@@ -256,9 +274,6 @@ def get_args():
 
     # OOD
     parser.add_argument('--ood-thres', type=str, default='18', help='OOD threshold')
-    parser.add_argument('--cluster_path', default='./ood/cache/cluster/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
-    parser.add_argument('--threshold_path', default='./ood/cache/threshold/kmeans_resnet50_tune_seaships.json', type=str, help='Path to backbone weight')
-    parser.add_argument('--cov_matrix_path', default='./ood/cache/cov_matrix/kmeans_resnet50_tune_seaships.pkl', type=str, help='Path to backbone weight')
     parser.add_argument('--score_matrix', default='euclidean', type=str, choices=['euclidean', 'mahalanobis', 'cosineSim'])
 
     opt = parser.parse_args()
@@ -268,7 +283,6 @@ def get_args():
     opt.cov_matrix_path = f'./ood/cache/cov_matrix/kmeans_{opt.backbone_arch}_seaships.pkl'
 
     print(opt)
-
     return opt
 
 if __name__ == '__main__':
