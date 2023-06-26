@@ -32,6 +32,7 @@ from seg.model.inference import Predictor
 import warnings
 warnings.filterwarnings(action='ignore')
 from PIL import Image, ImageDraw
+import platform
 
 # Colors corresponding to each segmentation class # (1 = water, 2 = sky, 0 = obstacles)
 BIN_COLORS = np.array([
@@ -162,7 +163,7 @@ def detect(opt, second_classifier):
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or view_img:  # Add bbox to image
-                        if (opt.draw_interm) and (int(cls) != 0):
+                        if (not opt.draw_interm) and (int(cls) != 0):
                             continue
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
@@ -188,11 +189,7 @@ def detect(opt, second_classifier):
 
             # Save results (image with detections)
             if save_img:
-                if dataset.mode == 'image':
-                    im0.save(save_path)
-                    # cv2.imwrite(save_path, im0)
-                    print(f" The image with the result is saved in: {save_path}")
-                elif dataset.mode in ['video', 'stream']:
+                if (dataset.mode in ['video', 'stream']) or ('modd' in opt.source):
                     im0 = np.asarray(im0)
                     if vid_path != video_path:  # new video
                         vid_path = video_path
@@ -207,6 +204,9 @@ def detect(opt, second_classifier):
                         video_path += '.mp4'
                         vid_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
+                elif dataset.mode == 'image':
+                    im0.save(save_path)
+                    print(f" The image with the result is saved in: {save_path}")
         if break_point:
             break
 
@@ -260,7 +260,7 @@ def get_args():
     parser.add_argument('--name', default=dataset, help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
-    parser.add_argument('--draw-interm', default=True, help='save intermediate results')
+    parser.add_argument('--draw-interm', default=False, help='save intermediate results')
 
     # Segmentation
     parser.add_argument("--seg_model", default='wodis', type=str, choices=seg_models.model_list, help="Model architecture.")

@@ -92,8 +92,12 @@ class Predictor():
                 'iou_water':self.iou_1.compute(), 'iou_sky':self.iou_2.compute()}
 
     def bbox_filtering(self, im0s, img_size=(640, 640), stride=32):
-        if not isinstance(im0s, list) and (len(im0s.shape) == 3):
-            im0s = np.expand_dims(im0s, axis=0)
+        if isinstance(im0s, list):
+            im0_shape = im0s[0].shape[1:3]
+        else:
+            if len(im0s.shape) == 3:
+                im0s = np.expand_dims(im0s, axis=0)
+            im0_shape = im0s.shape[1:3]
 
         # Preprocessing for Segmentation
         img = []
@@ -106,7 +110,7 @@ class Predictor():
         # Binary Mask (Ground&Sky pixels = 1 / other pixels = 0)
         ground_sky_bin = []
         for seg_pred in seg_preds:
-            ground_sky_bin.append(ground_sky_filtering(seg_pred, im0s.shape[1:3]))
+            ground_sky_bin.append(ground_sky_filtering(seg_pred, im0_shape))
         
         return ground_sky_bin
 
