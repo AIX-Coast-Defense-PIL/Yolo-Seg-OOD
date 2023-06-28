@@ -1,5 +1,6 @@
 import os
 import sys
+import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -13,7 +14,7 @@ CB_OPTIONS = {'seg': [{'name': 'Epochs', 'options': ['100 (Default)', '200', '10
             'test': [{'name': 'YOLO Threshold', 'options': ['0.05 (Default)', '0.1', '0.2']},
                     {'name': 'OOD Threshold', 'options': ['87 (Default)', '95', '99']}]}
 
-class MyApp(QMainWindow):
+class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
@@ -35,9 +36,11 @@ class MyApp(QMainWindow):
         
         self._createStatusBar()
         self.setWindowTitle('Unknown Object detection')
-        self.setWindowIcon(QIcon('./ui_utils/pil_logo_window.png'))
-        self.resize(400, 400)
 
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_window.png'))
+        self.setWindowIcon(QIcon(str(icon_path[0])))
+        
+        self.resize(400, 400)
         self.center()
         self.show()
     
@@ -45,7 +48,10 @@ class MyApp(QMainWindow):
         self.statusBar = self.statusBar()
         self.sbText = QLabel('2023, Developed by PIL')
         self.sbIcon = QLabel()
-        self.sbIcon.setPixmap(QPixmap('./ui_utils/pil_logo_status.jpg').scaled(48,14))
+
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_status.jpg'))
+        self.sbIcon.setPixmap(QPixmap(str(icon_path[0])).scaled(48,14))
+
         self.statusBar.addPermanentWidget(self.sbText)
         self.statusBar.addPermanentWidget(self.sbIcon)
 
@@ -56,7 +62,6 @@ class MyApp(QMainWindow):
         self.move(qr.topLeft())
     
     def editTrainSegShell(self, sh_path, find, replacement):
-        print(os.getcwd())
         with open(sh_path) as f:
             s = f.read()
         s = s.replace(find, replacement)
@@ -239,5 +244,5 @@ class MyApp(QMainWindow):
         
 if __name__ == '__main__':
    app = QApplication(sys.argv)
-   ex = MyApp()
+   ex = MainWindow()
    sys.exit(app.exec_())
