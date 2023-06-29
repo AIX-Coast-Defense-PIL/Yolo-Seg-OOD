@@ -3,6 +3,7 @@ import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from tab import TabWidget
+from utils import WINDOW_TITLE
 
 
 class MainWindow(QMainWindow):
@@ -13,14 +14,9 @@ class MainWindow(QMainWindow):
         tab_widget = QTabWidget(self)
         self.setCentralWidget(tab_widget)
 
-        tab1 = TabWidget('seg')
-        tab_widget.addTab(tab1, 'Train (Segmentation)')
-
-        tab2 = TabWidget('ood')
-        tab_widget.addTab(tab2, 'Train (OOD Classifier)')
-
-        tab3 = TabWidget('test')
-        tab_widget.addTab(tab3, 'Test')
+        for task in ['seg', 'ood', 'test']:
+            tab = TabWidget(task)
+            tab_widget.addTab(tab, WINDOW_TITLE[task])
 
         self.setCentralWidget(tab_widget)
         
