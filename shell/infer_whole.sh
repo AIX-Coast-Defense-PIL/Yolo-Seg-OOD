@@ -9,4 +9,4 @@ python test.py \
 --calc-performance True \
 --conf-thres 0.05 \
 --ood-thres 87 \
---exist-ok &>> $log_dir/logs_$timestamp.log
+--exist-ok #&>> $log_dir/logs_$timestamp.log

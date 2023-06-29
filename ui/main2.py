@@ -1,5 +1,8 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QTabWidget, QVBoxLayout, QWidget, QLabel
+import pathlib
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from tab import TabWidget
 
 
 class MainWindow(QMainWindow):
@@ -10,62 +13,44 @@ class MainWindow(QMainWindow):
         tab_widget = QTabWidget(self)
         self.setCentralWidget(tab_widget)
 
-        # 탭 생성 및 추가
-        tab1 = TabWidget('shell_script1.sh')
-        tab_widget.addTab(tab1, '탭 1')
+        tab1 = TabWidget('seg')
+        tab_widget.addTab(tab1, 'Train (Segmentation)')
 
-        tab2 = TabWidget('shell_script2.sh')
-        tab_widget.addTab(tab2, '탭 2')
+        tab2 = TabWidget('ood')
+        tab_widget.addTab(tab2, 'Train (OOD Classifier)')
 
-        tab3 = TabWidget('shell_script3.sh')
-        tab_widget.addTab(tab3, '탭 3')
+        tab3 = TabWidget('test')
+        tab_widget.addTab(tab3, 'Test')
 
+        self.setCentralWidget(tab_widget)
+        
+        self._createStatusBar()
+        self.setWindowTitle('Unknown Object detection')
 
-# 탭 내용을 담은 위젯
-class TabWidget(QWidget):
-    def __init__(self, shell_file):
-        super().__init__()
-        self.shell_file = shell_file
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_window.png'))
+        self.setWindowIcon(QIcon(str(icon_path[0])))
+        
+        self.resize(400, 400)
+        self.center()
+        self.show()
+    
+    def _createStatusBar(self):
+        self.statusBar = self.statusBar()
+        self.sbText = QLabel('2023, Developed by PIL')
+        self.sbIcon = QLabel()
 
-        layout = QVBoxLayout()
-        self.result_label = QLabel('실행 결과', self)
-        layout.addWidget(self.result_label)
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_status.jpg'))
+        self.sbIcon.setPixmap(QPixmap(str(icon_path[0])).scaled(48,14))
 
-        start_button = QPushButton('시작', self)
-        start_button.clicked.connect(self.open_result_window)
-        layout.addWidget(start_button)
+        self.statusBar.addPermanentWidget(self.sbText)
+        self.statusBar.addPermanentWidget(self.sbIcon)
 
-        self.setLayout(layout)
-
-    # 결과 창 열기
-    def open_result_window(self):
-        self.result_window = ResultWindow(self.shell_file)
-        self.result_window.show()
-
-
-# 결과 창 클래스
-class ResultWindow(QMainWindow):
-    def __init__(self, shell_file):
-        super().__init__()
-        self.setWindowTitle('Result Window')
-
-        layout = QVBoxLayout()
-        result_label = QLabel('실행 결과', self)
-        layout.addWidget(result_label)
-
-        # 쉘 파일 실행 후 결과 텍스트 가져오기
-        # 여기서는 단순히 쉘 파일 이름을 텍스트로 표시하는 예시입니다.
-        result_label.setText(shell_file)
-
-        # 창 닫기 버튼 생성
-        close_button = QPushButton('닫기', self)
-        close_button.clicked.connect(self.close)
-        layout.addWidget(close_button)
-
-        widget = QWidget()
-        widget.setLayout(layout)
-        self.setCentralWidget(widget)
-
+    def center(self):
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+    
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
