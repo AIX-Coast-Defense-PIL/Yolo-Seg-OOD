@@ -117,7 +117,7 @@ class TabWidget(QWidget):
         self.result_window.start_script()
 
     def editShell(self, find, replacement):
-        with open(self.script_path) as f:
+        with open(self.script_path.replace('_edit.sh', '.sh')) as f:
             s = f.read()
         s = s.replace(find, replacement)
         

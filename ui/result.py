@@ -99,10 +99,10 @@ class ResultWindow(QWidget):
         self.progress_bar.setValue(value)
 
     def append_output(self, text):
-        self.output_text.append(text)  # 텍스트 박스에 텍스트 추가
+        self.output_text.append(text)
 
     def update_output(self):
-        self.output_text.ensureCursorVisible()  # 텍스트 박스 스크롤 자동 조정
+        self.output_text.ensureCursorVisible()
 
     def toggle_output(self):
         if self.toggle_button.isChecked():
