@@ -116,6 +116,10 @@ def train_wasr(args):
 
         callbacks.append(ModelExporter())
 
+    print('The number of train datasets: ', len(train_dl))
+    print('The number of validation datasets: ', len(val_dl))
+    print('The number of epochs: ', args.epochs)
+
     trainer = pl.Trainer(logger=logger,
                          gpus=args.gpus,
                          max_epochs=args.epochs,
@@ -126,6 +130,7 @@ def train_wasr(args):
                          log_every_n_steps=args.log_steps,
                          precision=args.precision)
     trainer.fit(model, train_dl, val_dl)
+    print('Train Finish!')
 
 
 def main():

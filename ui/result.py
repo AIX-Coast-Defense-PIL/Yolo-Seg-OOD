@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -16,25 +17,46 @@ class ShellScriptThread(QThread):
 
     def run(self):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        total_lines = 0  # 전체 출력 라인 수 추적
-        completed_lines = 0  # 완료된 출력 라인 수 추적
+        completed_lines = 0
+        start_train = False
 
         while True:
             line = process.stdout.readline()
             if not line:
                 break
 
+            ## Update Terminal Output
             line = line.decode().strip()
-            self.output_updated.emit(line)  # 터미널 출력 업데이트
+            self.output_updated.emit(line)
+            
+            if 'The number of epochs:' in line:
+                num_epochs = line.split('  ')[1]
+            
+            if line.split(' ')[0] == 'Training:':
+                start_train = True
+            
+            ## Update Progress
+            if start_train:
+                if 'Epoch ' in line:
+                    t = line.split('Epoch ')[1][:10]
+                    epoch, perc = t.split(':')
+                    perc = perc.split('%')[0].lstrip()
+                    if int(perc) != 0:
+                        progress = 5 + int((int(epoch) + (int(perc)-1)/100) / int(num_epochs) * 95)
+                        self.progress_updated.emit(progress)
+                elif 'Train Finish!' in line:
+                    self.progress_updated.emit(100)
+            else:
+                completed_lines += 1
+                progress = 5 * (1 - (1.6)**(-completed_lines/5))
+                self.progress_updated.emit(progress)
 
-            # 여기에 다른 처리를 추가하세요.
-            completed_lines += 1
-
-            if "error" in line.lower():  # 오류 메시지가 포함된 행이 있는지 확인
-                self.error_occurred.emit(line)  # 오류 발생 시그널 발생
+            ## Error Message
+            if "error" in line.lower():
+                self.error_occurred.emit(line)
 
         process.wait()
-        self.script_finished.emit()  # 스크립트 실행 완료 시그널 발생
+        self.script_finished.emit()
 
 
 class ResultWindow(QWidget):
@@ -48,37 +70,41 @@ class ResultWindow(QWidget):
         self.setWindowTitle(WINDOW_TITLE[self.task] + ' Results')
 
         layout = QVBoxLayout(self)
+
+        progress_layout = QVBoxLayout()
+        progress_layout.setAlignment(Qt.AlignCenter)
+
         self.label = QLabel("진행 상황:")
-        layout.addWidget(self.label)
+        progress_layout.addWidget(self.label)
 
         self.progress_bar = QProgressBar()
-        layout.addWidget(self.progress_bar)
+        progress_layout.addWidget(self.progress_bar)
 
         self.output_text = QTextEdit()
-        self.output_text.setReadOnly(True)  # 읽기 전용으로 설정
-        layout.addWidget(self.output_text)
+        self.output_text.setReadOnly(True)
+        self.output_text.hide()
+        progress_layout.addWidget(self.output_text)
 
-        self.toggle_button = QPushButton("출력 접기")
+        self.toggle_button = QPushButton("▼ 자세히")
         self.toggle_button.setCheckable(True)
         self.toggle_button.setChecked(False)
-        layout.addWidget(self.toggle_button)
+        progress_layout.addWidget(self.toggle_button)
+
+        layout.addLayout(progress_layout)
 
         self.close_button = QPushButton("창 닫기")
         self.close_button.setEnabled(False)
         layout.addWidget(self.close_button)
 
         self.thread = None
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_output)  # 출력 업데이트 타이머에 연결
 
-        self.toggle_button.clicked.connect(self.toggle_output)  # 출력 토글 버튼에 클릭 이벤트 연결
-        self.close_button.clicked.connect(self.close)  # 창 닫기 버튼에 클릭 이벤트 연결
+        self.toggle_button.clicked.connect(self.toggle_output)
+        self.close_button.clicked.connect(self.close)
 
         self.thread_error_occurred = False
 
         self.resize(600, 400)
         self.center(40)
-        # self.show()
 
     def center(self, mv=0):
         qr = self.frameGeometry()
@@ -87,39 +113,47 @@ class ResultWindow(QWidget):
         self.move(qr.topLeft())
 
     def start_script(self):
-        self.thread = ShellScriptThread(f". {self.script_path}")  # 실행할 셸 스크립트 파일 이름으로 변경해야 함
-        self.thread.progress_updated.connect(self.update_progress)  # 진행률 업데이트 시그널 연결
-        self.thread.output_updated.connect(self.append_output)  # 터미널 출력 업데이트 시그널 연결
-        self.thread.error_occurred.connect(self.show_error_message)  # 오류 발생 시그널 연결
-        self.thread.script_finished.connect(self.script_finished)  # 스크립트 실행 완료 시그널 연결
+        self.thread = ShellScriptThread(f". {self.script_path}")
+        self.thread.progress_updated.connect(self.update_progress) 
+        self.thread.output_updated.connect(self.append_output)
+        self.thread.error_occurred.connect(self.show_error_message)
+        self.thread.script_finished.connect(self.script_finished)
         self.thread.start()
-        self.timer.start(100)  # 0.1초마다 출력 업데이트 타이머 시작
 
     def update_progress(self, value):
         self.progress_bar.setValue(value)
 
     def append_output(self, text):
         self.output_text.append(text)
+        QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
 
     def update_output(self):
         self.output_text.ensureCursorVisible()
 
     def toggle_output(self):
         if self.toggle_button.isChecked():
-            self.output_text.hide()
-            self.toggle_button.setText("출력 펼치기")
-        else:
             self.output_text.show()
-            self.toggle_button.setText("출력 접기")
+            self.toggle_button.setText("▲ 출력 접기")
+        else:
+            self.output_text.hide()
+            self.toggle_button.setText("▼ 자세히")
 
     def show_error_message(self, error):
         self.thread_error_occurred = True
         QMessageBox.critical(self, "오류 발생", error)
 
     def script_finished(self):
-        self.timer.stop()
-        self.toggle_button.setEnabled(False)
         self.close_button.setEnabled(True)
         
         if '_edit.sh' in self.script_path:
             os.remove(self.script_path)
+
+            
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+
+    result_window = ResultWindow('seg', './shell/train_seg_temp.sh')
+    result_window.show()
+    result_window.start_script()
+
+    sys.exit(app.exec_())
