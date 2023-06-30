@@ -1,9 +1,28 @@
 
-import json
 import os
+import json
+import argparse
 
-from converter import convert_annForm_bbox2img, convert_annForm_img2bbox
-from metrics import compute_iou
+import sys 
+work_path = os.path.join(os.getcwd(), os.pardir) if '/utils' in os.getcwd() else os.getcwd()
+work_path = work_path if 'Yolo-Seg-OOD' in work_path else os.path.join(work_path, 'Yolo-Seg-OOD')
+sys.path.append(work_path)
+
+from utils.converter import convert_annForm_bbox2img, convert_annForm_img2bbox
+from utils.metrics import compute_iou
+
+
+def get_arguments():
+    """Parse all the arguments provided from the CLI.
+
+    Returns:
+      A list of parsed arguments.
+    """
+    parser = argparse.ArgumentParser(description="WaSR Network MaSTr1325 Inference")
+    parser.add_argument("--dataset_dir", type=str, default='datasets/custom102', help="Dataset directory.")
+    parser.add_argument("--json_fname", type=str, default='yolov7_preds/yolov7_predictions.json', help="yolov7_predictions.json file name.")
+    return parser.parse_args()
+
 
 def remove_overlap_bbox(img_infos):
     new_img_infos = img_infos
@@ -23,15 +42,23 @@ def remove_overlap_bbox(img_infos):
     
     return new_img_infos
 
+
 if __name__ == '__main__':
-    dataset = 'custom102'
-    pred_path = os.path.join('datasets', dataset, 'yolov7_preds/yolov7_predictions.json')
+    args = get_arguments()
+    print(args)
+
+    if 'predictions.json' in args.json_fname:
+        save_fname = args.json_fname.replace('predictions.json', 'preds_refined.json')
+    else:
+        save_fname = args.json_fname.replace('.json', '_refined.json')
+    
+    pred_path = os.path.join(args.dataset_dir, args.json_fname)
     with open(pred_path, "r") as json_file:
         pred_infos = convert_annForm_bbox2img(json.load(json_file))
     
     refined_pred_infos = remove_overlap_bbox(pred_infos)
 
     refined_pred_infos = convert_annForm_img2bbox(refined_pred_infos)
-    save_path = os.path.join('datasets', dataset, 'yolov7_preds/yolov7_preds_refined.json')
+    save_path = os.path.join(args.dataset_dir, save_fname)
     with open(save_path, 'w', encoding='utf-8') as file:
         json.dump(refined_pred_infos, file, indent="\t")
