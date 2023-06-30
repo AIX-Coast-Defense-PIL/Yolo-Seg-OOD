@@ -1,8 +1,6 @@
 import json
 import os
 
-import sys
-sys.path.append('/home/hajung/github/yolov7-GMM')
 from utils.converter import convert_annForm_bbox2img
 
 def compute_iou(bbox1, bbox2):

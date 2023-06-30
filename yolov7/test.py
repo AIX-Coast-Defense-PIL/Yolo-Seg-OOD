@@ -9,10 +9,11 @@ import torch
 import yaml
 from tqdm import tqdm
 
-import sys
-start_path = os.path.join(os.getcwd(), 'yolov7')
-sys.path.append(start_path)
-os.chdir(start_path)
+import sys 
+work_path = os.path.join(os.getcwd(), os.pardir) if '/yolov7' in os.getcwd() else os.getcwd()
+work_path = work_path if 'Yolo-Seg-OOD' in work_path else os.path.join(work_path, 'Yolo-Seg-OOD')
+sys.path.append(work_path)
+sys.path.append(os.path.join(work_path, 'yolov7'))
 
 from models.experimental import attempt_load
 from yoloUtils.datasets import create_dataloader
@@ -298,7 +299,7 @@ def test(data,
 
 def set_yolo_args():
     parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--weights', nargs='+', type=str, default='yolov7.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='yolov7/yolov7.pt', help='model.pt path(s)')
     parser.add_argument('--data', type=str, default='data/custom102.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
