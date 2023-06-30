@@ -18,7 +18,7 @@ from models.experimental import attempt_load
 from yoloUtils.datasets import create_dataloader
 from yoloUtils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr
-from utils.metrics import ap_per_class, ConfusionMatrix
+from yoloUtils.metrics import ap_per_class, ConfusionMatrix
 from yoloUtils.plots import plot_images, output_to_target, plot_study_txt
 from yoloUtils.torch_utils import select_device, time_synchronized, TracedModel
 
@@ -309,9 +309,10 @@ def set_yolo_args():
     parser.add_argument('--single-cls', action='store_true', help='treat as single-class dataset')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')
-    parser.add_argument('--save-txt', default=True, action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
-    parser.add_argument('--save-conf', default=True, action='store_true', help='save confidences in --save-txt labels')
+    parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
+    parser.add_argument('--save-plots', action='store_true', help='save plots')
     parser.add_argument('--save-json', default=True, action='store_true', help='save a cocoapi-compatible JSON results file')
     parser.add_argument('--project', default='runs/test', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
@@ -342,6 +343,7 @@ if __name__ == '__main__':
              save_txt=opt.save_txt | opt.save_hybrid,
              save_hybrid=opt.save_hybrid,
              save_conf=opt.save_conf,
+             plots=opt.save_plots,
              trace=not opt.no_trace,
              v5_metric=opt.v5_metric
              )
