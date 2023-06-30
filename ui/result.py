@@ -6,10 +6,10 @@ from PyQt5.QtCore import *
 from utils import WINDOW_TITLE
 
 class ShellScriptThread(QThread):
-    progress_updated = pyqtSignal(int)  # 진행률 업데이트 시그널
-    output_updated = pyqtSignal(str)  # 터미널 출력 업데이트 시그널
-    error_occurred = pyqtSignal(str)  # 오류 발생 시그널
-    script_finished = pyqtSignal()  # 스크립트 실행 완료 시그널
+    progress_updated = pyqtSignal(int)
+    output_updated = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+    script_finished = pyqtSignal()
 
     def __init__(self, task, command):
         super().__init__()
