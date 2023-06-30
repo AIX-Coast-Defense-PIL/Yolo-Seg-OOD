@@ -109,7 +109,7 @@ class TabWidget(QWidget):
                                 f"--conf-thres {self.cb_yths}")
             
             if self.cb_oths is not None:
-                self.editShell("--ood-thres 87", 
+                self.editShell("--ood-thres 18", 
                                 f"--ood-thres {self.cb_oths}")
             
         self.result_window = ResultWindow(self.task, self.script_path)

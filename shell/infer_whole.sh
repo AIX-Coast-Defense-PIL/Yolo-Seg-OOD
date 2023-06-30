@@ -8,5 +8,5 @@ python test.py \
 --name $timestamp \
 --calc-performance True \
 --conf-thres 0.05 \
---ood-thres 87 \
+--ood-thres 18 \
 --exist-ok #&>> $log_dir/logs_$timestamp.log
