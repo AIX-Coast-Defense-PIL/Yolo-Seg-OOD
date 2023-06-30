@@ -11,14 +11,15 @@ class ShellScriptThread(QThread):
     error_occurred = pyqtSignal(str)  # 오류 발생 시그널
     script_finished = pyqtSignal()  # 스크립트 실행 완료 시그널
 
-    def __init__(self, command):
+    def __init__(self, task, command):
         super().__init__()
+        self.task = task
         self.command = command
 
     def run(self):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-        completed_lines = 0
-        start_train = False
+        self.completed_lines = 0
+        self.start_train = False
 
         while True:
             line = process.stdout.readline()
@@ -29,27 +30,9 @@ class ShellScriptThread(QThread):
             line = line.decode().strip()
             self.output_updated.emit(line)
             
-            if 'The number of epochs:' in line:
-                num_epochs = line.split('  ')[1]
-            
-            if line.split(' ')[0] == 'Training:':
-                start_train = True
-            
             ## Update Progress
-            if start_train:
-                if 'Epoch ' in line:
-                    t = line.split('Epoch ')[1][:10]
-                    epoch, perc = t.split(':')
-                    perc = perc.split('%')[0].lstrip()
-                    if int(perc) != 0:
-                        progress = 5 + int((int(epoch) + (int(perc)-1)/100) / int(num_epochs) * 95)
-                        self.progress_updated.emit(progress)
-                elif 'Train Finish!' in line:
-                    self.progress_updated.emit(100)
-            else:
-                completed_lines += 1
-                progress = 5 * (1 - (1.6)**(-completed_lines/5))
-                self.progress_updated.emit(progress)
+            if self.task == 'seg':
+                self.update_grogress_seg(line)
 
             ## Error Message
             if "error" in line.lower():
@@ -57,6 +40,29 @@ class ShellScriptThread(QThread):
 
         process.wait()
         self.script_finished.emit()
+    
+    def update_grogress_seg(self, line):
+        if 'The number of epochs:' in line:
+            self.num_epochs = line.split('  ')[1]
+        
+        if line.split(' ')[0] == 'Training:':
+            self.start_train = True
+        
+        if self.start_train:
+            if 'Epoch ' in line:
+                t = line.split('Epoch ')[1][:10]
+                epoch, perc = t.split(':')
+                perc = perc.split('%')[0].lstrip()
+                if int(perc) != 0:
+                    progress = 5 + int((int(epoch) + (int(perc)-1)/100) / int(self.num_epochs) * 95)
+                    self.progress_updated.emit(progress)
+            elif 'Train Finish!' in line:
+                self.progress_updated.emit(100)
+        else:
+            self.completed_lines += 1
+            progress = 5 * (1 - (1.6)**(-self.completed_lines/5))
+            self.progress_updated.emit(progress)
+
 
 
 class ResultWindow(QWidget):
@@ -77,18 +83,22 @@ class ResultWindow(QWidget):
         self.label = QLabel("진행 상황:")
         progress_layout.addWidget(self.label)
 
+        bar_layout = QHBoxLayout()
+
         self.progress_bar = QProgressBar()
-        progress_layout.addWidget(self.progress_bar)
+        bar_layout.addWidget(self.progress_bar)
+
+        self.toggle_button = QPushButton("▼ 자세히")
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)
+        bar_layout.addWidget(self.toggle_button)
+
+        progress_layout.addLayout(bar_layout)
 
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
         self.output_text.hide()
         progress_layout.addWidget(self.output_text)
-
-        self.toggle_button = QPushButton("▼ 자세히")
-        self.toggle_button.setCheckable(True)
-        self.toggle_button.setChecked(False)
-        progress_layout.addWidget(self.toggle_button)
 
         layout.addLayout(progress_layout)
 
@@ -103,8 +113,9 @@ class ResultWindow(QWidget):
 
         self.thread_error_occurred = False
 
-        self.resize(600, 400)
+        self.resize(600, 200)
         self.center(40)
+
 
     def center(self, mv=0):
         qr = self.frameGeometry()
@@ -113,7 +124,7 @@ class ResultWindow(QWidget):
         self.move(qr.topLeft())
 
     def start_script(self):
-        self.thread = ShellScriptThread(f". {self.script_path}")
+        self.thread = ShellScriptThread(self.task, f". {self.script_path}")
         self.thread.progress_updated.connect(self.update_progress) 
         self.thread.output_updated.connect(self.append_output)
         self.thread.error_occurred.connect(self.show_error_message)
@@ -134,9 +145,11 @@ class ResultWindow(QWidget):
         if self.toggle_button.isChecked():
             self.output_text.show()
             self.toggle_button.setText("▲ 출력 접기")
+            self.resize(600, 400)
         else:
             self.output_text.hide()
             self.toggle_button.setText("▼ 자세히")
+            self.resize(600, 100)
 
     def show_error_message(self, error):
         self.thread_error_occurred = True
