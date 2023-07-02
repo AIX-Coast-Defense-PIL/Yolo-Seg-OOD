@@ -8,7 +8,7 @@ def make_path(filepath):
     for dir in file_dirs:
         file_dir = os.path.join(file_dir, dir)
 
-    print(file_dir)
+    # print(file_dir)
     os.makedirs(file_dir, exist_ok=True)
 
 def save_file(data, filepath):

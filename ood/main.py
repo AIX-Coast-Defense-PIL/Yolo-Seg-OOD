@@ -12,8 +12,9 @@ import json
 from sklearn.mixture import GaussianMixture
 from sklearn.cluster import KMeans
 
-import sys
-work_path = os.path.join(os.getcwd(), '..')
+import sys 
+work_path = os.path.join(os.getcwd(), os.pardir) if '/ood' in os.getcwd() else os.getcwd()
+work_path = work_path if 'Yolo-Seg-OOD' in work_path else os.path.join(work_path, 'Yolo-Seg-OOD')
 sys.path.append(work_path)
 
 from utils.converter import convert_annForm_bbox2img
@@ -44,8 +45,7 @@ def load_model(args):
         model = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
         # model = torchvision.models.resnet50(pretrained=True)
     elif args.backbone_arch == 'resnet50_tune':
-        load_path = os.path.join(args.backbone_weight)
-        ckpt = torch.load(load_path).state_dict()
+        ckpt = torch.load(args.backbone_weight).state_dict()
         model = torchvision.models.resnet50()
         model.load_state_dict(ckpt)
     else:
@@ -64,6 +64,7 @@ def get_bbox_infos(args, mode, feat_path, model, cluster=None, threshold=None):
             return feat_infos, {}
         data_dir_path = os.path.join(args.data_root, args.train_data)
         data_loader = get_train_loader(data_dir_path, batch_size=args.train_bs)
+    
     elif mode == 'test':
         data_dir_path = os.path.join(args.data_root, args.test_data)
         data_loader = get_test_loader(data_dir_path, batch_size=1)
@@ -82,29 +83,35 @@ def get_bbox_infos(args, mode, feat_path, model, cluster=None, threshold=None):
             images = images.to(device)
             feats = model(images)
             feats = feats.data.cpu().numpy()
+            
+            if mode == 'train':
+                for idx in range(len(labels)):
+                    feat_infos.append({'img_name':img_names[idx], 'label':labels[idx], 'bbox':[int(bboxes[coordicate_idx][idx]) for coordicate_idx in range(4)], 'feat':feats[idx]})
 
-            for idx in range(len(labels)):
-                feat_infos.append({'img_name':img_names[idx], 'label':labels[idx], 'bbox':[int(bboxes[coordicate_idx][idx]) for coordicate_idx in range(4)], 'feat':feats[idx]})
-
-            if mode == 'test':
+            elif mode == 'test':
                 ood_scores = calc_distance_score(cluster, feats, args.score_matrix, 'test', args.cov_matrix_path)
                 for idx in range(len(labels)):
                     pred_infos.append({'img_name':img_names[idx], 'label':0 if ood_scores[idx] > threshold else 1, 'bbox':[int(bboxes[coordicate_idx][idx]) for coordicate_idx in range(4)], 'ood_score':ood_scores[idx]})
 
-
             if batch_idx % 20 == 0:
                 batch_time = time.time() - start_batch_time
                 print(f'[{batch_idx}/{len(data_loader)} batch] {batch_time:.04f} sec per batch')
+            
             # memory management
             del feats
             del labels
             torch.cuda.empty_cache()
-
     total_time = time.time() - start_time
-    time_per_img = total_time / len(feat_infos)
-    save_file(feat_infos, feat_path)
-    if mode == 'test': save_file(pred_infos, args.score_path)
-    print(f'[Saved the features] path : {feat_path}, total time : {total_time:.4f}, time : {time_per_img:.4f} s/f')
+    
+    if mode == 'train':
+        save_file(feat_infos, feat_path)
+        time_per_img = total_time / len(feat_infos)
+        print(f'[Saved the features] path : {feat_path}, total time : {total_time:.4f}, time : {time_per_img:.4f} s/f')
+    
+    elif mode == 'test': 
+        save_file(pred_infos, args.score_path)
+        time_per_img = total_time / len(pred_infos)
+        print(f'[Saved the scores] path : {args.score_path}, total time : {total_time:.4f}, time : {time_per_img:.4f} s/f')
     
     return feat_infos, pred_infos
         
@@ -121,7 +128,7 @@ def train_cluster(args, feats):
 
     # save cluster model
     save_file(cluster, args.cluster_path)
-    print('saved cluster model in ', args.cluster_path)
+    print('[saved cluster model] path :', args.cluster_path)
 
     return cluster
 
@@ -153,7 +160,7 @@ def ood_train(args):
     ood_scores = sorted(ood_scores, reverse=True)
     thresholds_in_rate = {str(in_rate)+"%" : round(ood_scores[round((1-(in_rate*0.01)) * len(ood_scores))], 2) for in_rate in range(1, 101, 1)}
     save_file(thresholds_in_rate, args.threshold_path)
-    print(f'ood thresholds : {thresholds_in_rate}')
+    print('[saved ood thresholds] path :', args.threshold_path)
 
     return thresholds_in_rate
 
@@ -175,17 +182,18 @@ def ood_test(args, threshold = 10):
     return performance
 
 if __name__=='__main__':
-    root_path = os.path.join(os.getcwd(), '..')
-    
-    args = get_args(root_path)
+    args = get_args(work_path)
     device = torch.device(f'cuda:{args.gpu}')
     seed_setting(0)
 
-    if args.mode == 'train':
-        thresholds_in_rate = ood_train(args)
-    else:
+    try:
         thresholds_in_rate = load_file(args.threshold_path)
+        print(f'Loaded thresholds from {args.threshold_path}')
+    except FileNotFoundError:
+        thresholds_in_rate = ood_train(args)
+    print(f'ood thresholds : {thresholds_in_rate}')
 
-    threshold = thresholds_in_rate['87%']
-    performance = ood_test(args, threshold = threshold)
-    print(performance)
+    if args.mode in ['both', 'test']:
+        threshold = thresholds_in_rate['18%']
+        performance = ood_test(args, threshold = threshold)
+        print(performance)

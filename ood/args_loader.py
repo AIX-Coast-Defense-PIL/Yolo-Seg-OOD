@@ -12,7 +12,7 @@ def get_args(root):
 
     # data path
     parser.add_argument('--data_root', default=os.path.join(root, 'datasets'), type=str, help='root directory path of all data')
-    parser.add_argument('--train_data', default='seaships', type=str, choices=['coco', 'custom102', 'seaships'])
+    parser.add_argument('--train_data', default='seaships', type=str)
     parser.add_argument('--test_data', default='custom102', type=str, choices=['coco', 'custom102', 'seaships', 'modd/*', 'nexreal/*'])
 
     # model
@@ -36,7 +36,7 @@ def get_args(root):
     args.test_feat_path = os.path.join(root, 'ood/cache/feature/', f'test_{args.backbone_arch}_{args.test_data}.pkl')
     args.cluster_path = os.path.join(root, 'ood/cache/cluster/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
     args.cov_matrix_path = os.path.join(root, 'ood/cache/cov_matrix/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
-    args.threshold_path = os.path.join(root, 'ood/threshold/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.json')
+    args.threshold_path = os.path.join(root, 'ood/cache/threshold/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.json')
     args.score_path = os.path.join(root, 'ood/scores/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}_{args.test_data}.pkl')
 
     return args
