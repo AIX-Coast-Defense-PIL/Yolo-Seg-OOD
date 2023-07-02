@@ -32,7 +32,7 @@ def train_resnet(args):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor = 0.1, patience=5)
 
     EPOCHS = 100
-    for epoch in range(EPOCHS):
+    for epoch in range(1, EPOCHS+1):
         losses = []
         running_loss = 0
         for i, inp in enumerate(data_loader):
@@ -54,7 +54,7 @@ def train_resnet(args):
             running_loss += loss.item()
             
             if i%100 == 0 and i > 0:
-                print(f'Loss [{epoch+1}, {i}](epoch, minibatch): ', running_loss / 100)
+                print(f'Loss [{epoch}, {i}](epoch, minibatch): ', running_loss / 100)
                 running_loss = 0.0
             
         if epoch == EPOCHS:
