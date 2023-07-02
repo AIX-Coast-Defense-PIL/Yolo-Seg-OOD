@@ -6,37 +6,38 @@ import torch.backends.cudnn as cudnn
 import torch.nn.functional as F
 import torch.optim as optim
 
-root_path = os.path.join(os.getcwd())
-sys.path.append(root_path)
-os.chdir(root_path)
+import sys 
+work_path = os.path.join(os.getcwd(), os.pardir) if '/ood' in os.getcwd() else os.getcwd()
+work_path = work_path if 'Yolo-Seg-OOD' in work_path else os.path.join(work_path, 'Yolo-Seg-OOD')
+sys.path.append(work_path)
 
 from ood.args_loader import get_args
 from ood.data_loader import get_train_loader
     
-def train_resnet():
+def train_resnet(args):
     print('start training..')
 
-    args = get_args(root_path)
-
-    data_dir_path = os.path.join(args.data_root, args.train_data)
+    if args.data_root.endswith('/datasets'):
+        data_dir_path = os.path.join(args.data_root, args.train_data)
+    else:
+        data_dir_path = args.data_root
     data_loader = get_train_loader(data_dir_path, batch_size=args.train_bs)
     
     model = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.IMAGENET1K_V2)
+    # model = torchvision.models.resnet50(pretrained=True)
     model = model.to('cuda')
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=0.0001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor = 0.1, patience=5)
 
-    EPOCHS = 200
+    EPOCHS = 100
     for epoch in range(EPOCHS):
         losses = []
         running_loss = 0
         for i, inp in enumerate(data_loader):
             inputs, img_name, labels, bbox = inp
 
-            # if len(inputs) != args.train_bs:
-            #   break
             if i == len(data_loader) - 1:
                 break
 
@@ -56,8 +57,8 @@ def train_resnet():
                 print(f'Loss [{epoch+1}, {i}](epoch, minibatch): ', running_loss / 100)
                 running_loss = 0.0
             
-        if epoch%5 == 0:
-            torch.save(model, f'ood/backbone/resnet_funed_e{epoch}.pth')
+        if epoch == EPOCHS:
+            torch.save(model, args.backbone_weight)
 
 
         avg_loss = sum(losses)/len(losses)
@@ -67,4 +68,5 @@ def train_resnet():
 
 
 if __name__ == '__main__':
-    train_resnet()
+    args = get_args(work_path)
+    train_resnet(args)
