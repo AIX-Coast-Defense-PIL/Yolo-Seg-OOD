@@ -205,6 +205,7 @@ def detect(opt, second_classifier):
                         vid_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                     vid_writer.write(im0)
                 elif dataset.mode == 'image':
+                    im0 = Image.fromarray(im0[:,:,[2,1,0]]) if isinstance(im0, np.ndarray) else im0
                     im0.save(save_path)
                     print(f" The image with the result is saved in: {save_path}")
         if break_point:
@@ -250,7 +251,7 @@ def get_args():
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
     parser.add_argument('--save-txt', default=True, help='save results to *.txt')
-    parser.add_argument('--calc-performance', default=False, help='save results to preds.json')
+    parser.add_argument('--calc-performance', action='store_true', help='save results to preds.json')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', default=True, help='class-agnostic NMS')
@@ -260,7 +261,7 @@ def get_args():
     parser.add_argument('--name', default=dataset, help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--no-trace', action='store_true', help='don`t trace model')
-    parser.add_argument('--draw-interm', default=False, help='save intermediate results')
+    parser.add_argument('--draw-interm', action='store_true', help='save intermediate results')
 
     # Segmentation
     parser.add_argument("--seg_model", default='wodis', type=str, choices=seg_models.model_list, help="Model architecture.")
@@ -275,18 +276,16 @@ def get_args():
     # OOD
     parser.add_argument('--ood-thres', type=str, default='18', help='OOD threshold')
     parser.add_argument('--score_matrix', default='euclidean', type=str, choices=['euclidean', 'mahalanobis', 'cosineSim'])
+    parser.add_argument('--threshold_path', default='./ood/cache/threshold/kmeans_resnet50_seaships.json', type=str, help='Path to threshold')
+    parser.add_argument('--cluster_path', default='./ood/cache/cluster/kmeans_resnet50_seaships.pkl', type=str, help='Path to cluster model')
+    parser.add_argument('--cov_matrix_path', default='./ood/cache/cov_matrix/kmeans_resnet50_seaships.pkl', type=str, help='Path to cov matrix')
 
     opt = parser.parse_args()
-
-    opt.threshold_path = f'./ood/threshold/kmeans_{opt.backbone_arch}_seaships.json'
-    opt.cluster_path = f'./ood/cache/cluster/kmeans_{opt.backbone_arch}_seaships.pkl'
-    opt.cov_matrix_path = f'./ood/cache/cov_matrix/kmeans_{opt.backbone_arch}_seaships.pkl'
-
-    print(opt)
     return opt
 
 if __name__ == '__main__':
     opt = get_args()
+    print(opt)
     #check_requirements(exclude=('pycocotools', 'thop'))
 
     with torch.no_grad():
