@@ -40,8 +40,8 @@ def calc_iou_performance(pred_infos, ann_infos, ood_threshold=None, conf_thresho
                         TP_per_imgs[img_idx] += 1
                         break
 
-    precision = round(sum(TP_per_imgs) / sum(Pos_per_imgs), 4)
-    recall = round(sum(TP_per_imgs) / sum(True_per_imgs), 4)
+    precision = round(sum(TP_per_imgs) / (sum(Pos_per_imgs) + 1e-15), 4)
+    recall = round(sum(TP_per_imgs) / (sum(True_per_imgs) + 1e-15), 4)
 
     
     return {
