@@ -80,7 +80,7 @@ class ResultWindow(QWidget):
         progress_layout = QVBoxLayout()
         progress_layout.setAlignment(Qt.AlignCenter)
 
-        self.label = QLabel("진행 상황:")
+        self.label = QLabel("진행 상황 (1/5):") if self.task == 'ood' else QLabel("진행 상황:")
         progress_layout.addWidget(self.label)
 
         bar_layout = QHBoxLayout()
@@ -137,9 +137,6 @@ class ResultWindow(QWidget):
     def append_output(self, text):
         self.output_text.append(text)
         QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
-
-    def update_output(self):
-        self.output_text.ensureCursorVisible()
 
     def toggle_output(self):
         if self.toggle_button.isChecked():

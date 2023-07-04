@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -49,10 +50,11 @@ class MainWindow(QMainWindow):
         self.move(qr.topLeft())
     
     def closeEvent(self, event):
-        for task in ['seg', 'ood', 'test']:
-            path = SCRIPT_PATH[task].replace('.sh', '_edit.sh')
-            if os.path.isfile(path):
-                os.remove(path)
+        path = "./shell/*_edit.sh"
+        file_list = glob.glob(path)
+        for f_path in file_list:
+            os.remove(f_path)
+        
         event.accept()
 
 if __name__ == '__main__':
