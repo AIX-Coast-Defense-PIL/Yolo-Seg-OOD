@@ -1,6 +1,7 @@
 
 # datasets
 datasets/
+data_example/
 
 # outputs
 */cache/
