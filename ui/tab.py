@@ -132,21 +132,15 @@ class TabWidget(QWidget):
                                     
             refine_preds_path = editFile("./shell/refine_yolo_preds.sh", "--dataset_dir ./data_example",
                                     f"--dataset_dir {self.data_folder}")
-
-            train_backbone_path = editFile("./shell/train_ood_backbone.sh", "--data_root ./data_example",
-                                    f"--data_root {self.data_folder}")
-            train_backbone_path = editFile(train_backbone_path, "--backbone_weight ./ood/backbone/resnet_e100_data_example.pth",
-                                    f"--backbone_weight ./ood/backbone/resnet_e100_{dir_name}.pth")
             
             train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--data_root .",
                                     f"--data_root {os.path.join(self.data_folder, os.pardir)}")
-            train_cluster_path = editFile(train_cluster_path, "dir_name=data_example",
-                                    f"dir_name={dir_name}")
+            train_cluster_path = editFile(train_cluster_path, "--train_data data_example",
+                                    f"--train_data {dir_name}")
             
             script_path = editFile(script_path, ". shell/infer_yolo.sh", f". {infer_yolo_path}")
             script_path = editFile(script_path, ". shell/filter_yolo_preds.sh", f". {filter_preds_path}")
             script_path = editFile(script_path, ". shell/refine_yolo_preds.sh", f". {refine_preds_path}")
-            script_path = editFile(script_path, ". shell/train_ood_backbone.sh", f". {train_backbone_path}")
             script_path = editFile(script_path, ". shell/train_ood_cluster.sh", f". {train_cluster_path}")
             
         return script_path
