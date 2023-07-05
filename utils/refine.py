@@ -11,6 +11,8 @@ sys.path.append(work_path)
 from utils.converter import convert_annForm_bbox2img, convert_annForm_img2bbox
 from utils.metrics import compute_iou
 
+import warnings
+warnings.filterwarnings('ignore')
 
 def get_arguments():
     """Parse all the arguments provided from the CLI.

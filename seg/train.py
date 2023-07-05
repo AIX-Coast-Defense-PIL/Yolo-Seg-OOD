@@ -12,6 +12,8 @@ from model.utils import ModelExporter, load_weights
 from data.data_loader import MaSTr1325Dataset
 from data.transforms import get_augmentation_transform, PytorchHubNormalization
 
+import warnings
+warnings.filterwarnings('ignore')
 
 DEVICE_BATCH_SIZE = 3
 NUM_CLASSES = 3

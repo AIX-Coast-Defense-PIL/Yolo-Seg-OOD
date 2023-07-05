@@ -25,10 +25,8 @@ from args_loader import get_args
 from data_loader import get_train_loader, get_test_loader
 from ood_scores import calc_distance_score
 
-
-
-
-# os.chdir(os.path.join(os.getcwd(), 'ood'))
+import warnings
+warnings.filterwarnings('ignore')
 
 
 def seed_setting(num):  # 이해, 정리 x

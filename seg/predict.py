@@ -24,6 +24,8 @@ from seg.model.processing import ground_sky_filtering
 from yolov7.yoloUtils.general import scale_coords
 from yolov7.yoloUtils.torch_utils import time_synchronized
 
+import warnings
+warnings.filterwarnings('ignore')
 
 # Colors corresponding to each segmentation class, (0 = obstacles, 1 = water, 2 = sky)
 SEGMENTATION_COLORS = np.array([
