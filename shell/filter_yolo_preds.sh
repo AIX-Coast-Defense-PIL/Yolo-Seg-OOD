@@ -1,3 +1,4 @@
+echo "Start filtering YOLO-v7 predictions! \n"
 data_dir=./data_example
 
 python seg/predict.py \

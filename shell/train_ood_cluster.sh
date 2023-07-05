@@ -1,8 +1,8 @@
-dir_name=data_example
+echo "Start OOD cluster (K-Means) train! \n"
 
 python ood/main.py \
 --mode train \
 --data_root . \
---train_data $dir_name \
---backbone_arch resnet50_tune \
---backbone_weight ./ood/backbone/resnet_e100_$dir_name.pth
+--train_data data_example \
+
+echo "OOD cluster (K-Means) train Done! \n"

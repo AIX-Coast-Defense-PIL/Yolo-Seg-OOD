@@ -66,6 +66,7 @@ def predict(args):
                                normalize_t=PytorchHubNormalization(), yolo_resize=(args.imgsz, 32),
                                include_original=args.save_results)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, num_workers=1)
+    print('The number of test datasets: ', len(dataloader))
 
     # Prepare model
     model = models.get_model(args.seg_model, pretrained=False)

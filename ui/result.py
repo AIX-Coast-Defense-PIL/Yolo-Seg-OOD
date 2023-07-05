@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import subprocess
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -20,6 +21,10 @@ class ShellScriptThread(QThread):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         self.completed_lines = 0
         self.start_train = False
+        self.start_infer_yolo = False
+        self.start_filter_preds = False
+        self.start_train_backbone = False
+        self.start_train_cluster = False
 
         while True:
             line = process.stdout.readline()
@@ -33,6 +38,8 @@ class ShellScriptThread(QThread):
             ## Update Progress
             if self.task == 'seg':
                 self.update_grogress_seg(line)
+            elif self.task == 'ood':
+                self.update_grogress_ood(line)
 
             ## Error Message
             if "error" in line.lower():
@@ -62,12 +69,81 @@ class ShellScriptThread(QThread):
             self.completed_lines += 1
             progress = 5 * (1 - (1.6)**(-self.completed_lines/5))
             self.progress_updated.emit(progress)
+    
+    def update_grogress_ood(self, line):
+        ## infer_yolo.sh
+        if 'Start YOLO-v7 prediction!' in line:
+            self.start_infer_yolo = True
+            
+        if self.start_infer_yolo:
+            if 'if param.grad is not None:' in line:
+                self.progress_updated.emit(5)
+            
+            elif 'corrupted: ' in line:
+                self.progress_updated.emit(30)
 
+            elif 'mAP@.5:.95:' in line:
+                t = line.split('mAP@.5:.95:')[1][:10]
+                perc = int(t.split('%')[0].lstrip())
+                self.progress_updated.emit(30 + int(perc * 0.7))
+            
+            elif 'YOLO-v7 prediction Done!' in line:
+                self.start_infer_yolo = False
+                self.progress_updated.emit(100)
+                time.sleep(3)
+        
+        ## filter_yolo_preds.sh & refine_yolo_preds.sh
+        if 'Start filtering YOLO-v7 predictions!' in line:
+            self.start_filter_preds = True
+        
+        if self.start_filter_preds:
+            if 'The number of test datasets:' in line:
+                self.num_datasets = int(line.split('  ')[1])
+
+            elif f'/{self.num_datasets}' in line:
+                t = int(line.split(f'/{self.num_datasets}')[0])
+                if t != 0:
+                    progress = int((t / self.num_datasets) * 100)
+                    self.progress_updated.emit(progress)
+                
+            elif 'YOLO-v7 prediction filtering Done!' in line:
+                self.start_filter_preds = False
+                self.progress_updated.emit(100)
+                time.sleep(3)
+
+        ## train_ood_backbone.sh
+        if 'Start OOD backbone (ResNet-50) train!' in line:
+            self.start_train_backbone = True
+
+        if self.start_train_backbone:
+            if 'Loss [' in line:
+                t = line.split('Loss [')[1][:10]
+                perc = int(t.split(',')[0].lstrip())
+                self.progress_updated.emit(perc-1)
+            
+            elif 'OOD backbone (ResNet-50) train Done!' in line:
+                self.start_train_backbone = False
+                self.progress_updated.emit(100)
+
+        ## train_ood_backbone.sh
+        if 'Start OOD cluster (K-Means) train!' in line:
+            self.start_train_cluster = True
+
+        if self.start_train_cluster:
+            if 'Loaded thresholds from' in line:
+                self.progress_updated.emit(50)
+            elif 'ood thresholds : ' in line:
+                self.progress_updated.emit(80)
+            
+            elif 'OOD cluster (K-Means) train Done!' in line:
+                self.start_train_cluster = False
+                self.progress_updated.emit(100)
 
 
 class ResultWindow(QWidget):
     def __init__(self, task, script_path):
         super().__init__()
+        self.ood_progress = 1
         self.task = task
         self.script_path = script_path
         self.initUI()
@@ -80,7 +156,7 @@ class ResultWindow(QWidget):
         progress_layout = QVBoxLayout()
         progress_layout.setAlignment(Qt.AlignCenter)
 
-        self.label = QLabel("진행 상황 (1/5):") if self.task == 'ood' else QLabel("진행 상황:")
+        self.label = QLabel("진행 상황 (1/4):") if self.task == 'ood' else QLabel("진행 상황:")
         progress_layout.addWidget(self.label)
 
         bar_layout = QHBoxLayout()
@@ -108,6 +184,9 @@ class ResultWindow(QWidget):
 
         self.thread = None
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_output)  # 출력 업데이트 타이머에 연결
+
         self.toggle_button.clicked.connect(self.toggle_output)
         self.close_button.clicked.connect(self.close)
 
@@ -130,13 +209,23 @@ class ResultWindow(QWidget):
         self.thread.error_occurred.connect(self.show_error_message)
         self.thread.script_finished.connect(self.script_finished)
         self.thread.start()
+        self.timer.start(100)  # 0.1초마다 출력 업데이트 타이머 시작
+
 
     def update_progress(self, value):
+        if value == 100:
+            self.ood_progress += 1
+            self.label.setText(f"진행 상황 ({self.ood_progress}/5):")
+            value = 0
+        
         self.progress_bar.setValue(value)
 
     def append_output(self, text):
         self.output_text.append(text)
-        QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+        # QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+
+    def update_output(self):
+        self.output_text.ensureCursorVisible()  # 텍스트 박스 스크롤 자동 조정
 
     def toggle_output(self):
         if self.toggle_button.isChecked():
@@ -153,10 +242,8 @@ class ResultWindow(QWidget):
         QMessageBox.critical(self, "오류 발생", error)
 
     def script_finished(self):
+        self.timer.stop()
         self.close_button.setEnabled(True)
-        
-        if '_edit.sh' in self.script_path:
-            os.remove(self.script_path)
 
             
 if __name__ == '__main__':
