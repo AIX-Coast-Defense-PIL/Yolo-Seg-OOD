@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import subprocess
+import numpy as np
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from utils import WINDOW_TITLE
@@ -21,10 +22,8 @@ class ShellScriptThread(QThread):
         process = subprocess.Popen(self.command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         self.completed_lines = 0
         self.start_train = False
-        self.start_infer_yolo = False
-        self.start_filter_preds = False
-        self.start_train_backbone = False
-        self.start_train_cluster = False
+        self.val_min, self.val_max = 0, 5
+        self.num_datasets = 0
 
         while True:
             line = process.stdout.readline()
@@ -37,18 +36,23 @@ class ShellScriptThread(QThread):
             
             ## Update Progress
             if self.task == 'seg':
-                self.update_grogress_seg(line)
+                self.update_grogress_train_seg(line)
             elif self.task == 'ood':
-                self.update_grogress_ood(line)
+                if 'infer_yolo' in self.command:
+                    self.update_grogress_infer_yolo(line)
+                elif 'filter_yolo' in self.command:
+                    self.update_grogress_filter_preds(line)
+                elif 'train_ood_cluster' in self.command:
+                    self.update_grogress_train_cluster(line)
 
             ## Error Message
             if "error" in line.lower():
                 self.error_occurred.emit(line)
-
+            
         process.wait()
         self.script_finished.emit()
     
-    def update_grogress_seg(self, line):
+    def update_grogress_train_seg(self, line):
         if 'The number of epochs:' in line:
             self.num_epochs = line.split('  ')[1]
         
@@ -70,82 +74,68 @@ class ShellScriptThread(QThread):
             progress = 5 * (1 - (1.6)**(-self.completed_lines/5))
             self.progress_updated.emit(progress)
     
-    def update_grogress_ood(self, line):
+    def update_grogress_infer_yolo(self, line):
         ## infer_yolo.sh
-        if 'Start YOLO-v7 prediction!' in line:
-            self.start_infer_yolo = True
-            
-        if self.start_infer_yolo:
-            if 'if param.grad is not None:' in line:
-                self.progress_updated.emit(5)
-            
-            elif 'corrupted: ' in line:
-                self.progress_updated.emit(30)
-
-            elif 'mAP@.5:.95:' in line:
-                t = line.split('mAP@.5:.95:')[1][:10]
-                perc = int(t.split('%')[0].lstrip())
-                self.progress_updated.emit(30 + int(perc * 0.7))
-            
-            elif 'YOLO-v7 prediction Done!' in line:
-                self.start_infer_yolo = False
-                self.progress_updated.emit(100)
-                time.sleep(3)
+        if 'if param.grad is not None:' in line:
+            self.val_min, self.val_max = 5, 30
+            self.completed_lines = 0
+            self.progress_updated.emit(5)
         
-        ## filter_yolo_preds.sh & refine_yolo_preds.sh
-        if 'Start filtering YOLO-v7 predictions!' in line:
-            self.start_filter_preds = True
+        elif 'corrupted: ' in line:
+            self.val_min, self.val_max = 30, 100
+            self.completed_lines = 0
+            self.progress_updated.emit(30)
+
+        elif 'mAP@.5:.95:' in line:
+            t = line.split('mAP@.5:.95:')[1][:10]
+            perc = int(t.split('%')[0].lstrip())
+            self.progress_updated.emit(30 + int(perc * 0.7))
         
-        if self.start_filter_preds:
-            if 'The number of test datasets:' in line:
-                self.num_datasets = int(line.split('  ')[1])
+        elif 'YOLO-v7 prediction Done!' in line:
+            self.val_min = 100
+            self.start_infer_yolo = False
+            self.progress_updated.emit(100)
+        
+        else:
+            if self.val_min != 100:
+                progress = int(self.val_min + (self.val_max - self.val_min) / (1 + np.exp(-0.7 * self.completed_lines + 5)))
+                self.progress_updated.emit(progress)
 
-            elif f'/{self.num_datasets}' in line:
-                t = int(line.split(f'/{self.num_datasets}')[0])
-                if t != 0:
-                    progress = int((t / self.num_datasets) * 100)
-                    self.progress_updated.emit(progress)
-                
-            elif 'YOLO-v7 prediction filtering Done!' in line:
-                self.start_filter_preds = False
-                self.progress_updated.emit(100)
-                time.sleep(3)
+        self.completed_lines += 1
+    
+    def update_grogress_filter_preds(self, line):
+        ## filter_yolo_preds.sh
+        if 'The number of test datasets:' in line:
+            self.num_datasets = int(line.split('  ')[1])
 
-        ## train_ood_backbone.sh
-        if 'Start OOD backbone (ResNet-50) train!' in line:
-            self.start_train_backbone = True
-
-        if self.start_train_backbone:
-            if 'Loss [' in line:
-                t = line.split('Loss [')[1][:10]
-                perc = int(t.split(',')[0].lstrip())
-                self.progress_updated.emit(perc-1)
+        elif (self.num_datasets != 0) and (f'/{self.num_datasets}' in line):
+            t = int(line.split(f'/{self.num_datasets}')[0])
+            if t != 0:
+                progress = int((t / self.num_datasets) * 100)
+                if progress != 100: self.progress_updated.emit(progress)
             
-            elif 'OOD backbone (ResNet-50) train Done!' in line:
-                self.start_train_backbone = False
-                self.progress_updated.emit(100)
+        elif 'YOLO-v7 prediction filtering Done!' in line:
+            self.start_filter_preds = False
+            self.progress_updated.emit(100)
 
-        ## train_ood_backbone.sh
-        if 'Start OOD cluster (K-Means) train!' in line:
-            self.start_train_cluster = True
-
-        if self.start_train_cluster:
-            if 'Loaded thresholds from' in line:
-                self.progress_updated.emit(50)
-            elif 'ood thresholds : ' in line:
-                self.progress_updated.emit(80)
-            
-            elif 'OOD cluster (K-Means) train Done!' in line:
-                self.start_train_cluster = False
-                self.progress_updated.emit(100)
+    def update_grogress_train_cluster(self, line):
+        ## train_ood_cluster.sh
+        if 'Loaded thresholds from' in line:
+            self.progress_updated.emit(50)
+        elif 'ood thresholds : ' in line:
+            self.progress_updated.emit(80)
+        
+        elif 'OOD cluster (K-Means) train Done!' in line:
+            self.start_train_cluster = False
+            self.progress_updated.emit(100)
 
 
 class ResultWindow(QWidget):
-    def __init__(self, task, script_path):
+    def __init__(self, task, num_script):
         super().__init__()
-        self.ood_progress = 1
+        self.ood_progress = 0
         self.task = task
-        self.script_path = script_path
+        self.num_script = num_script
         self.initUI()
 
     def initUI(self):
@@ -156,7 +146,11 @@ class ResultWindow(QWidget):
         progress_layout = QVBoxLayout()
         progress_layout.setAlignment(Qt.AlignCenter)
 
-        self.label = QLabel("진행 상황 (1/4):") if self.task == 'ood' else QLabel("진행 상황:")
+        if self.task == 'ood':
+            self.label = QLabel("<span style='color: black'>진행 상황 </span>"
+                            f"<span style='color: blue'>(1/{self.num_script}):</span>")
+        else:
+            self.label = QLabel("진행 상황:")
         progress_layout.addWidget(self.label)
 
         bar_layout = QHBoxLayout()
@@ -176,6 +170,10 @@ class ResultWindow(QWidget):
         self.output_text.hide()
         progress_layout.addWidget(self.output_text)
 
+        self.complete_text = QLabel('')
+        self.complete_text.setAlignment(Qt.AlignCenter)
+        progress_layout.addWidget(self.complete_text)
+
         layout.addLayout(progress_layout)
 
         self.close_button = QPushButton("창 닫기")
@@ -185,7 +183,7 @@ class ResultWindow(QWidget):
         self.thread = None
 
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update_output)  # 출력 업데이트 타이머에 연결
+        self.timer.timeout.connect(self.update_output)
 
         self.toggle_button.clicked.connect(self.toggle_output)
         self.close_button.clicked.connect(self.close)
@@ -202,30 +200,43 @@ class ResultWindow(QWidget):
         qr.moveCenter(cp + QPoint(mv,mv))
         self.move(qr.topLeft())
 
-    def start_script(self):
-        self.thread = ShellScriptThread(self.task, f". {self.script_path}")
-        self.thread.progress_updated.connect(self.update_progress) 
-        self.thread.output_updated.connect(self.append_output)
-        self.thread.error_occurred.connect(self.show_error_message)
-        self.thread.script_finished.connect(self.script_finished)
-        self.thread.start()
-        self.timer.start(100)  # 0.1초마다 출력 업데이트 타이머 시작
+    def start_script(self, script_path):
+        self.script_index = 0
+        self.script_path = script_path
 
+        self.execute_script(self.script_path[self.script_index])
+
+    def execute_script(self, script):
+        self.script_thread = ShellScriptThread(self.task, f". {script}")
+        self.script_thread.progress_updated.connect(self.update_progress)
+        self.script_thread.output_updated.connect(self.append_output)
+        self.script_thread.error_occurred.connect(self.show_error_message)
+        self.script_thread.script_finished.connect(self.script_finished)
+        self.script_thread.start()
+        self.timer.start(100)
+        
+        QApplication.processEvents()
 
     def update_progress(self, value):
-        if value == 100:
-            self.ood_progress += 1
-            self.label.setText(f"진행 상황 ({self.ood_progress}/5):")
-            value = 0
-        
         self.progress_bar.setValue(value)
+
+        if value == 100:
+            time.sleep(3)
+            self.ood_progress += 1
+            if self.ood_progress != self.num_script:
+                self.label.setText("<span style='color: black'>진행 상황 </span>"
+                                f"<span style='color: blue'>({self.ood_progress+1}/{self.num_script}):</span>")
+                self.progress_bar.setValue(0)
+            else:
+                self.complete_text.setText("학습 완료!")
 
     def append_output(self, text):
         self.output_text.append(text)
-        # QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+        self.output_text.ensureCursorVisible()
 
     def update_output(self):
-        self.output_text.ensureCursorVisible()  # 텍스트 박스 스크롤 자동 조정
+        self.output_text.ensureCursorVisible()
+        QApplication.processEvents()
 
     def toggle_output(self):
         if self.toggle_button.isChecked():
@@ -243,8 +254,13 @@ class ResultWindow(QWidget):
 
     def script_finished(self):
         self.timer.stop()
-        self.close_button.setEnabled(True)
 
+        if self.script_index == len(self.script_path) - 1:
+            self.close_button.setEnabled(True)
+        else:
+            self.script_index += 1
+            self.execute_script(self.script_path[self.script_index])
+    
             
 if __name__ == '__main__':
     app = QApplication(sys.argv)

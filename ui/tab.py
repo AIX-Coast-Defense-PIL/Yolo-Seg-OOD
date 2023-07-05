@@ -101,9 +101,9 @@ class TabWidget(QWidget):
         elif self.task == 'test':
             script_path = self.editShellTest(script_path)
         
-        self.result_window = ResultWindow(self.task, script_path)
+        self.result_window = ResultWindow(self.task, len(script_path))
         self.result_window.show()
-        self.result_window.start_script()
+        self.result_window.start_script(script_path)
     
     def editShellSeg(self, script_path):
         if self.data_folder is not None:
@@ -117,7 +117,7 @@ class TabWidget(QWidget):
         if self.cb_llmbd is not None:
             script_path = editFile(script_path, "--separation_loss cwsl", 
                                 f"--separation_loss {self.cb_llmbd}")
-        return script_path
+        return [script_path]
     
     def editShellOod(self, script_path):
         if self.data_folder is not None:
@@ -129,21 +129,13 @@ class TabWidget(QWidget):
                                     
             filter_preds_path = editFile("./shell/filter_yolo_preds.sh", "data_dir=./data_example",
                                     f"data_dir={self.data_folder}")
-                                    
-            refine_preds_path = editFile("./shell/refine_yolo_preds.sh", "--dataset_dir ./data_example",
-                                    f"--dataset_dir {self.data_folder}")
             
             train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--data_root .",
                                     f"--data_root {os.path.join(self.data_folder, os.pardir)}")
             train_cluster_path = editFile(train_cluster_path, "--train_data data_example",
                                     f"--train_data {dir_name}")
             
-            script_path = editFile(script_path, ". shell/infer_yolo.sh", f". {infer_yolo_path}")
-            script_path = editFile(script_path, ". shell/filter_yolo_preds.sh", f". {filter_preds_path}")
-            script_path = editFile(script_path, ". shell/refine_yolo_preds.sh", f". {refine_preds_path}")
-            script_path = editFile(script_path, ". shell/train_ood_cluster.sh", f". {train_cluster_path}")
-            
-        return script_path
+        return [infer_yolo_path, filter_preds_path, train_cluster_path]
     
     def editShellTest(self, script_path):
         if self.data_folder is not None:
@@ -157,7 +149,7 @@ class TabWidget(QWidget):
         if self.cb_oths is not None:
             script_path = editFile(script_path, "--ood-thres 18", 
                                 f"--ood-thres {self.cb_oths}")
-        return script_path
+        return [script_path]
 
     def onActivatedEpoch(self, text):
         self.cb_epoch = text.replace(' (Default)', '')
