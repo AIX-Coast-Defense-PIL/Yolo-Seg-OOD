@@ -24,6 +24,7 @@ class ShellScriptThread(QThread):
         self.start_train = False
         self.val_min, self.val_max = 0, 5
         self.num_datasets = 0
+        self.error_occurred = False
 
         while True:
             line = process.stdout.readline()
@@ -47,10 +48,13 @@ class ShellScriptThread(QThread):
 
             ## Error Message
             if "error" in line.lower():
+                self.error_occurred = True
                 self.error_occurred.emit(line)
+                break
             
         process.wait()
-        self.script_finished.emit()
+        if not self.error_occurred:
+            self.script_finished.emit()
     
     def update_grogress_train_seg(self, line):
         if 'The number of epochs:' in line:
@@ -90,6 +94,9 @@ class ShellScriptThread(QThread):
             t = line.split('mAP@.5:.95:')[1][:10]
             perc = int(t.split('%')[0].lstrip())
             self.progress_updated.emit(30 + int(perc * 0.7))
+        
+        elif 'YOLO-v7 predictions already exist.' in line:
+            self.progress_updated.emit(90)
         
         elif 'YOLO-v7 prediction Done!' in line:
             self.val_min = 100
