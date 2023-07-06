@@ -60,12 +60,14 @@ def get_bbox_infos(args, mode, feat_path, model, cluster=None, threshold=None):
             feat_infos = load_file(feat_path)
             print(f'Loaded the features from {feat_path}')
             return feat_infos, {}
-        data_dir_path = os.path.join(args.data_root, args.train_data)
-        data_loader = get_train_loader(data_dir_path, batch_size=args.train_bs)
+        data_dir_paths = [args.train_data]
+        if args.add_train_data not in [None, 'None']:
+            data_dir_paths.append(args.add_train_data)
+            print(f'Using additional train dataset! ({args.add_train_data})')
+        data_loader = get_train_loader(data_dir_paths, batch_size=args.train_bs)
     
     elif mode == 'test':
-        data_dir_path = os.path.join(args.data_root, args.test_data)
-        data_loader = get_test_loader(data_dir_path, batch_size=1)
+        data_loader = get_test_loader(args.test_data, batch_size=1)
 
     model.to(device)
     model.eval()
@@ -171,7 +173,7 @@ def ood_test(args, threshold = 10):
 
     # call and set format of pred_infos & ann_infos
     ood_infos = convert_annForm_bbox2img(ood_infos)
-    ann_file_path = os.path.join(args.data_root, args.test_data, 'annotations/all.json')
+    ann_file_path = os.path.join(args.test_data, 'annotations/all.json')
     ann_infos = load_file(ann_file_path)
     
     # calc precision and recall

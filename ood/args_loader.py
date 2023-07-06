@@ -11,9 +11,10 @@ def get_args(root):
     parser.add_argument('--gpu', default=0, type=int, help='gpu number')
 
     # data path
-    parser.add_argument('--data_root', default=os.path.join(root, 'datasets'), type=str, help='root directory path of all data')
-    parser.add_argument('--train_data', default='seaships', type=str)
-    parser.add_argument('--test_data', default='custom102', type=str, choices=['coco', 'custom102', 'seaships', 'modd/*', 'nexreal/*'])
+    parser.add_argument('--train_data', default='./datasets/seaships', type=str)
+    parser.add_argument('--add_train_data', default=None, type=str)
+    parser.add_argument('--test_data', default='./datasets/custom102', type=str, 
+                        choices=['./datasets/coco', './datasets/custom102', './datasets/seaships', './datasets/modd/*', './datasets/nexreal/*'])
 
     # model
     parser.add_argument('--backbone_arch', default='resnet50', choices=['resnet50', 'resnet50_tune'], type=str, help='')
@@ -32,11 +33,16 @@ def get_args(root):
     args = parser.parse_args()
 
     # save path
-    args.train_feat_path = os.path.join(root, 'ood/cache/feature/', f'train_{args.backbone_arch}_{args.train_data}.pkl')
-    args.test_feat_path = os.path.join(root, 'ood/cache/feature/', f'test_{args.backbone_arch}_{args.test_data}.pkl')
-    args.cluster_path = os.path.join(root, 'ood/cache/cluster/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
-    args.cov_matrix_path = os.path.join(root, 'ood/cache/cov_matrix/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.pkl')
-    args.threshold_path = os.path.join(root, 'ood/cache/threshold/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}.json')
-    args.score_path = os.path.join(root, 'ood/scores/', f'{args.cluster}_{args.backbone_arch}_{args.train_data}_{args.test_data}.pkl')
+    train_data_name = args.train_data.split('/')[-1]
+    test_data_name = args.test_data.split('/')[-1]
+    if args.add_train_data not in [None, 'None']:
+        train_data_name = 'seaships_' + train_data_name
+        test_data_name = 'seaships_' + test_data_name
+    args.train_feat_path = os.path.join(root, 'ood/cache/feature/', f'train_{args.backbone_arch}_{train_data_name}.pkl')
+    args.test_feat_path = os.path.join(root, 'ood/cache/feature/', f'test_{args.backbone_arch}_{test_data_name}.pkl')
+    args.cluster_path = os.path.join(root, 'ood/cache/cluster/', f'{args.cluster}_{args.backbone_arch}_{train_data_name}.pkl')
+    args.cov_matrix_path = os.path.join(root, 'ood/cache/cov_matrix/', f'{args.cluster}_{args.backbone_arch}_{train_data_name}.pkl')
+    args.threshold_path = os.path.join(root, 'ood/cache/threshold/', f'{args.cluster}_{args.backbone_arch}_{train_data_name}.json')
+    args.score_path = os.path.join(root, 'ood/scores/', f'{args.cluster}_{args.backbone_arch}_{train_data_name}_{test_data_name}.pkl')
 
     return args

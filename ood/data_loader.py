@@ -44,7 +44,7 @@ class YoloOutputDataset(Dataset):
 
         return cutout, img_name, label, bbox
 
-def get_train_loader(data_dir_path, batch_size):
+def get_train_loader(data_dir_paths, batch_size):
     transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize([16, 16]),
@@ -53,10 +53,16 @@ def get_train_loader(data_dir_path, batch_size):
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
     ])  
-    data_loader = torch.utils.data.DataLoader(
-        YoloOutputDataset(data_dir_path, transform=transform),
-        batch_size=batch_size, shuffle=True
-    )
+    
+    datasets = []
+    for data_dir_path in data_dir_paths:
+        dataset = YoloOutputDataset(data_dir_path, transform=transform)
+        datasets.append(dataset)
+    
+    combined_dataset = torch.utils.data.ConcatDataset(datasets)
+    data_loader = torch.utils.data.DataLoader(combined_dataset,
+                                            batch_size=batch_size, shuffle=True)
+    
     return data_loader
 
 def get_test_loader(data_dir_path, batch_size):
