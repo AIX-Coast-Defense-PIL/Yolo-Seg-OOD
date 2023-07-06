@@ -1,12 +1,10 @@
 timestamp=`date +%Y%m%d%H%M%S`
 
-log_dir=runs/detect/$timestamp
-mkdir -p $log_dir
-
 python test.py \
 --source ./datasets/custom102/images \
---name $timestamp \
---calc-performance True \
+--name custom102_$timestamp \
 --conf-thres 0.05 \
 --ood-thres 18 \
---exist-ok #&>> $log_dir/logs_$timestamp.log
+--exist-ok \
+--threshold_path ./ood/cache/threshold/kmeans_resnet50_seaships.json \
+--cluster_path ./ood/cache/cluster/kmeans_resnet50_seaships.pkl
