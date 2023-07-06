@@ -1,3 +1,4 @@
+import glob
 from PyQt5.QtWidgets import *
 from result import ResultWindow
 from utils import *
@@ -133,17 +134,18 @@ class TabWidget(QWidget):
             filter_preds_path = editFile("./shell/filter_yolo_preds.sh", "data_dir=./data_example",
                                     f"data_dir={self.data_folder}")
             
-            train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--data_root .",
-                                    f"--data_root {os.path.join(self.data_folder, os.pardir)}")
-            train_cluster_path = editFile(train_cluster_path, "--train_data data_example",
-                                    f"--train_data {dir_name}")
+            train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--add_train_data None",
+                                    f"--add_train_data {self.data_folder}")
             
         return [infer_yolo_path, filter_preds_path, train_cluster_path]
     
     def editShellTest(self, script_path):
         if self.data_folder is not None:
+            dir_name = self.data_folder.split('/')[-1]
             script_path = editFile(script_path, "--source ./datasets/custom102/images",
-                                    f"--source {self.data_folder}")
+                                    f"--source {self.data_folder}/images")
+            script_path = editFile(script_path, "--name custom102_$timestamp",
+                                    f"--name {dir_name}_$timestamp")
                                     
         if self.cb_yths is not None:
             script_path = editFile(script_path, "--conf-thres 0.05", 
@@ -152,6 +154,18 @@ class TabWidget(QWidget):
         if self.cb_oths is not None:
             script_path = editFile(script_path, "--ood-thres 18", 
                                 f"--ood-thres {self.cb_oths}")
+        
+        new_threshold = "./ood/cache/threshold/kmeans_resnet50_seaships_*.json"
+        if glob.glob(new_threshold):
+            script_path = editFile(script_path, "--threshold_path ./ood/cache/threshold/kmeans_resnet50_seaships.json",
+                                f"--threshold_path {new_threshold}")
+        
+        new_cluster = "./ood/cache/cluster/kmeans_resnet50_seaships_*.pkl" 
+        if glob.glob(new_cluster):
+            script_path = editFile(script_path, "--cluster_path ./ood/cache/cluster/kmeans_resnet50_seaships.pkl",
+                                f"--cluster_path {new_cluster}")
+        
+        
         return [script_path]
 
     def onActivatedEpoch(self, text):

@@ -2,7 +2,6 @@ echo "Start OOD cluster (K-Means) train! \n"
 
 python ood/main.py \
 --mode train \
---data_root . \
---train_data data_example \
+--add_train_data None \
 
 echo "OOD cluster (K-Means) train Done! \n"
