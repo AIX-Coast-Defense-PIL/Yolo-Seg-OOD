@@ -63,7 +63,7 @@ def exif_size(img):
 
 
 def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=False, cache=False, pad=0.0, rect=False,
-                      rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix='', project=None):
+                      rank=-1, world_size=1, workers=8, image_weights=False, quad=False, prefix='', project=None, yolo_preds_path=None):
     # Make sure only the first process in DDP process the dataset first, and the following others can use the cache
     with torch_distributed_zero_first(rank):
         dataset = LoadImagesAndLabels(path, imgsz, batch_size,
@@ -76,7 +76,8 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
                                       pad=pad,
                                       image_weights=image_weights,
                                       prefix=prefix,
-                                      project=project)
+                                      project=project,
+                                      yolo_preds_path=yolo_preds_path)
 
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
@@ -353,7 +354,7 @@ def img2label_paths(img_paths):
 
 class LoadImagesAndLabels(Dataset):  # for training/testing
     def __init__(self, path, img_size=640, batch_size=16, augment=False, hyp=None, rect=False, image_weights=False,
-                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', project=None):
+                 cache_images=False, single_cls=False, stride=32, pad=0.0, prefix='', project=None, yolo_preds_path=None):
         self.img_size = img_size
         self.augment = augment
         self.hyp = hyp
@@ -395,7 +396,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
             if os.path.exists(files_txt_path):
                 with open(files_txt_path, 'r', encoding='UTF-8') as f:
                     stored_list = [line.strip() for line in f.readlines()]
-                if sorted(stored_list) == self.img_files:
+                if (sorted(stored_list) == self.img_files) and os.path.exists(yolo_preds_path):
                     self.stored_preds = True
             
             if not self.stored_preds:

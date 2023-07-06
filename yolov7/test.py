@@ -94,16 +94,17 @@ def test(data,
     log_imgs = 0
     if wandb_logger and wandb_logger.wandb:
         log_imgs = min(wandb_logger.log_imgs, 100)
+    
     # Dataloader
+    yolo_preds_path = save_dir / "yolov7_predictions.json"
     if not training:
         if device.type != 'cpu':
             model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
         task = opt.task if opt.task in ('train', 'val', 'test') else 'val'  # path to train/val/test images
         dataloader = create_dataloader(data[task], imgsz, batch_size, gs, opt, pad=0.5, rect=True,
-                                       prefix=colorstr(f'{task}: '), project=opt.project)
+                                       prefix=colorstr(f'{task}: '), project=opt.project, yolo_preds_path=yolo_preds_path)
     
     if dataloader[1].stored_preds:
-        yolo_preds_path = save_dir / "yolov7_predictions.json"
         print(f"YOLO-v7 predictions already exist. (created: {time.ctime(os.path.getctime(yolo_preds_path))})")
     
     else:
