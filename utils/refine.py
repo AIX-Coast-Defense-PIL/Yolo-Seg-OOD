@@ -46,6 +46,8 @@ def remove_overlap_bbox(img_infos):
 
 
 if __name__ == '__main__':
+    print("Start refining YOLO-v7 predictions! \n")
+
     args = get_arguments()
     print(args)
 
@@ -64,3 +66,5 @@ if __name__ == '__main__':
     save_path = os.path.join(args.dataset_dir, save_fname)
     with open(save_path, 'w', encoding='utf-8') as file:
         json.dump(refined_pred_infos, file, indent="\t")
+    
+    print("YOLO-v7 prediction refining Done! \n")

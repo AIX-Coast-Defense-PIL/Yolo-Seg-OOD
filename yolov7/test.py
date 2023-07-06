@@ -336,6 +336,8 @@ def set_yolo_args():
     return opt
 
 if __name__ == '__main__':
+    print("Start YOLO-v7 prediction! \n")
+
     opt = set_yolo_args()
     #check_requirements()
 
@@ -376,3 +378,5 @@ if __name__ == '__main__':
             np.savetxt(f, y, fmt='%10.4g')  # save
         os.system('zip -r study.zip study_*.txt')
         plot_study_txt(x=x)  # plot
+    
+    print("YOLO-v7 prediction Done! \n")

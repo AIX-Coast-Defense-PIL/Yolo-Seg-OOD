@@ -162,11 +162,14 @@ def predict(args):
 
 
 def main():
+    print("Start filtering YOLO-v7 predictions! \n")
+
     args = get_arguments()
     print(args)
 
     predict(args)
 
+    print("YOLO-v7 prediction filtering Done! \n")
 
 if __name__ == '__main__':
     main()
