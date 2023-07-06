@@ -228,7 +228,7 @@ class ResultWindow(QWidget):
                                 f"<span style='color: blue'>({self.ood_progress+1}/{self.num_script}):</span>")
                 self.progress_bar.setValue(0)
             else:
-                self.complete_text.setText("학습 완료!")
+                self.complete_text.setText("학습이 완료되었습니다.")
 
     def append_output(self, text):
         self.output_text.append(text)
