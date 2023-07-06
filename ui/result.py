@@ -24,7 +24,6 @@ class ShellScriptThread(QThread):
         self.start_train = False
         self.val_min, self.val_max = 0, 5
         self.num_datasets = 0
-        self.error_occurred = False
 
         while True:
             line = process.stdout.readline()
@@ -48,13 +47,11 @@ class ShellScriptThread(QThread):
 
             ## Error Message
             if "error" in line.lower():
-                self.error_occurred = True
                 self.error_occurred.emit(line)
                 break
             
         process.wait()
-        if not self.error_occurred:
-            self.script_finished.emit()
+        self.script_finished.emit()
     
     def update_grogress_train_seg(self, line):
         if 'The number of epochs:' in line:
@@ -262,7 +259,10 @@ class ResultWindow(QWidget):
     def script_finished(self):
         self.timer.stop()
 
-        if self.script_index == len(self.script_path) - 1:
+        if self.thread_error_occurred:
+            self.complete_text.setText("오류가 발생하였습니다. 창을 닫고 다시 실행하여 주십시오.")
+            self.close_button.setEnabled(True)
+        elif self.script_index == len(self.script_path) - 1:
             self.close_button.setEnabled(True)
         else:
             self.script_index += 1
