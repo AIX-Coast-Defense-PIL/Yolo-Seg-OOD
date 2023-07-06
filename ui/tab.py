@@ -96,7 +96,7 @@ class TabWidget(QWidget):
             script_path = self.editShellSeg(script_path)
             
         elif self.task == 'ood':
-            script_path = self.editShellOod(script_path)
+            script_path = self.editShellOod()
 
         elif self.task == 'test':
             script_path = self.editShellTest(script_path)
@@ -107,8 +107,11 @@ class TabWidget(QWidget):
     
     def editShellSeg(self, script_path):
         if self.data_folder is not None:
+            dir_name = self.data_folder.split('/')[-1]
             script_path = editFile(script_path, "--source /home/leeyoonji/workspace/git/datasets/mastr1478/images",
                                     f"--source {self.data_folder}/images")
+            script_path = editFile(script_path, "--model_name mastr1478_wodis",
+                                    f"--model_name {dir_name}_wodis")
                                     
         if self.cb_epoch is not None:
             script_path = editFile(script_path, "--epochs 100", 
@@ -119,7 +122,7 @@ class TabWidget(QWidget):
                                 f"--separation_loss {self.cb_llmbd}")
         return [script_path]
     
-    def editShellOod(self, script_path):
+    def editShellOod(self):
         if self.data_folder is not None:
             yaml_path, dir_name = createDataYaml(self.data_folder)
             infer_yolo_path = editFile("./shell/infer_yolo.sh", "--data ./data_example/data_example.yaml",
