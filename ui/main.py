@@ -50,8 +50,7 @@ class MainWindow(QMainWindow):
         self.move(qr.topLeft())
     
     def closeEvent(self, event):
-        path = "./shell/*_edit.sh"
-        file_list = glob.glob(path)
+        file_list = glob.glob( "./shell/*_edit.sh")
         for f_path in file_list:
             os.remove(f_path)
         
