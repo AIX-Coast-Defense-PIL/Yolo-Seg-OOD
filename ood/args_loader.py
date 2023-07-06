@@ -36,8 +36,7 @@ def get_args(root):
     train_data_name = args.train_data.split('/')[-1]
     test_data_name = args.test_data.split('/')[-1]
     if args.add_train_data not in [None, 'None']:
-        train_data_name = 'seaships_' + train_data_name
-        test_data_name = 'seaships_' + test_data_name
+        train_data_name = 'seaships_' + args.add_train_data.split('/')[-1]
     args.train_feat_path = os.path.join(root, 'ood/cache/feature/', f'train_{args.backbone_arch}_{train_data_name}.pkl')
     args.test_feat_path = os.path.join(root, 'ood/cache/feature/', f'test_{args.backbone_arch}_{test_data_name}.pkl')
     args.cluster_path = os.path.join(root, 'ood/cache/cluster/', f'{args.cluster}_{args.backbone_arch}_{train_data_name}.pkl')
