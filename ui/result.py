@@ -34,6 +34,15 @@ class ShellScriptThread(QThread):
             line = line.decode().strip()
             self.output_updated.emit(line)
             
+            ## Error Message
+            if "error" in line.lower():
+                if (self.task == 'ood') and ('train_ood_cluster' in self.command) and \
+                    ('FileNotFoundError'.lower() in line.lower()) and ('threshold' in line.lower()):
+                        pass
+                else:
+                    self.error_occurred.emit(line)
+                    break
+            
             ## Update Progress
             if self.task == 'seg':
                 self.update_grogress_train_seg(line)
@@ -44,11 +53,6 @@ class ShellScriptThread(QThread):
                     self.update_grogress_filter_preds(line)
                 elif 'train_ood_cluster' in self.command:
                     self.update_grogress_train_cluster(line)
-
-            ## Error Message
-            if "error" in line.lower():
-                self.error_occurred.emit(line)
-                break
             
         process.wait()
         self.script_finished.emit()
@@ -118,7 +122,7 @@ class ShellScriptThread(QThread):
                 progress = int((t / self.num_datasets) * 100)
                 if progress != 100: self.progress_updated.emit(progress)
             
-        elif 'YOLO-v7 prediction filtering Done!' in line:
+        elif 'YOLO-v7 prediction refining Done!' in line:
             self.start_filter_preds = False
             self.progress_updated.emit(100)
 
