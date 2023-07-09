@@ -1,7 +1,7 @@
 import sys
 import os
-from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QFileDialog
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
 
 class LabelingTool(QWidget):
     def __init__(self):
@@ -9,21 +9,27 @@ class LabelingTool(QWidget):
         self.image_directory = './ood/datasets/boundary_data/images'
         self.image_list = []
         self.current_image_index = 0
+        self.img_size = 400
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("이미지 라벨링 도구")
 
         self.image_label = QLabel(self)
-        self.image_label.setFixedSize(300, 300)
+        self.image_label.setFixedSize(self.img_size, self.img_size)
 
         self.reference_label = QLabel(self)
-        self.reference_label.setFixedSize(300, 300)
+        self.reference_label.setFixedSize(self.img_size, self.img_size)
 
-        self.prev_button = QPushButton("이전 이미지", self)
-        self.next_button = QPushButton("다음 이미지", self)
+        self.prev_button = QPushButton("◀", self)
+        self.next_button = QPushButton("▶", self)
         self.known_button = QPushButton("Known", self)
         self.unknown_button = QPushButton("Unknown", self)
+
+        self.prev_button.setFixedWidth(40)
+        self.next_button.setFixedWidth(40)
+        self.known_button.setFixedWidth(90)
+        self.unknown_button.setFixedWidth(90)
 
         self.prev_button.clicked.connect(self.show_previous_image)
         self.next_button.clicked.connect(self.show_next_image)
@@ -35,23 +41,23 @@ class LabelingTool(QWidget):
         image_layout.addWidget(self.reference_label)
 
         button_layout = QHBoxLayout()
-        button_layout.addStretch(1)
         button_layout.addWidget(self.prev_button)
         button_layout.addWidget(self.next_button)
-        button_layout.addStretch(1)
-
-        center_layout = QVBoxLayout()
-        center_layout.addLayout(image_layout)
-        center_layout.addLayout(button_layout)
 
         label_layout = QVBoxLayout()
-        label_layout.addStretch(1)
+        label_layout.addStretch(5)
         label_layout.addWidget(self.known_button)
         label_layout.addWidget(self.unknown_button)
         label_layout.addStretch(1)
+        label_layout.addLayout(button_layout)
+        label_layout.addStretch(4)
+
+        spacer_item = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Preferred)
+        label_layout.addSpacerItem(spacer_item)
+
 
         main_layout = QHBoxLayout()
-        main_layout.addLayout(center_layout)
+        main_layout.addLayout(image_layout)
         main_layout.addLayout(label_layout)
 
         self.setLayout(main_layout)
@@ -77,10 +83,10 @@ class LabelingTool(QWidget):
         if self.image_list:
             image_path = self.image_list[self.current_image_index]
             pixmap = QPixmap(image_path)
-            self.image_label.setPixmap(pixmap.scaled(300, 300))
+            self.image_label.setPixmap(pixmap.scaled(self.img_size, self.img_size))
 
             # 참조 이미지를 두 번째 QLabel에 표시합니다.
-            self.reference_label.setPixmap(pixmap.scaled(300, 300))
+            self.reference_label.setPixmap(pixmap.scaled(self.img_size, self.img_size))
 
     def show_previous_image(self):
         if self.image_list:
