@@ -67,4 +67,4 @@ if __name__ == '__main__':
     with open(save_path, 'w', encoding='utf-8') as file:
         json.dump(refined_pred_infos, file, indent="\t")
     
-    print("YOLO-v7 prediction refining Done! \n")
+    print("\nYOLO-v7 prediction refining Done! \n")
