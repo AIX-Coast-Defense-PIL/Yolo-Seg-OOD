@@ -11,6 +11,8 @@ class TabWidget(QWidget):
         self.data_folder = None
         self.cb_epoch = None
         self.cb_llmbd = None
+        self.cb_yths = None
+        self.cb_oths = None
         self.initUI()
 
     def initUI(self):
