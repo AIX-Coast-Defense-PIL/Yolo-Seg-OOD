@@ -7,6 +7,7 @@ import torch
 import torch.backends.cudnn as cudnn
 import numpy as np
 import os
+import json
 import platform
 
 import sys 
@@ -50,6 +51,16 @@ def detect(opt, second_classifier):
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
     (save_dir / 'labels' if opt.save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    bnd_dir = Path('./ood/datasets/boundary_data')
+    bnd_json = str(bnd_dir / 'yolov7_preds/yolov7_predictions.json')
+    if opt.save_boundary_data:
+        if os.path.exists(bnd_json):
+            with open(bnd_json, 'rb') as file:
+                jdict = json.load(file)
+        else:
+            (bnd_dir / 'images').mkdir(parents=True, exist_ok=True)
+            (bnd_dir / 'yolov7_preds').mkdir(parents=True, exist_ok=True)
+            jdict = []
 
     # Initialize
     set_logging()
@@ -79,7 +90,10 @@ def detect(opt, second_classifier):
     fe_model.to(device).eval()
     cluster = second_classifier['cluster']
     second_classify = second_classifier['pred_func']
-    ood_thres = second_classifier['thresholds'][opt.ood_thres+'%']
+    ood_thres_dict = second_classifier['thresholds']
+    bnd_thres = 40
+    low_bound = ood_thres_dict[f"{max(1, int(opt.ood_thres)-bnd_thres)}%"]
+    up_bound = ood_thres_dict[f"{min(100, int(opt.ood_thres)+bnd_thres)}%"]
 
     # Set Dataloader
     view_img = opt.view_img
@@ -124,7 +138,7 @@ def detect(opt, second_classifier):
         # Apply Classifier
         ground_sky_bin = seg_predictor.bbox_filtering(im0s, img_size=imgsz, stride=stride)
         t4 = time_synchronized()
-        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, ood_thres, 
+        pred = second_classify(pred, ground_sky_bin, fe_model, cluster, ood_thres_dict[opt.ood_thres+'%'], 
                                img, im0s, opt.score_matrix, opt.cov_matrix_path, filter_thres=opt.filter_thres)
         t5 = time_synchronized()
 
@@ -144,6 +158,7 @@ def detect(opt, second_classifier):
             save_path = os.path.join(img_dir, p.name.split('.')[0]+'.jpg') # img.jpg
             video_path = str(save_dir / 'video')
             txt_path = str(save_dir / 'labels' / p.stem)  # img.txt
+            bnd_img_path = os.path.join(bnd_dir, 'images', p.name.split('.')[0]+'.jpg') # img.jpg
 
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -155,10 +170,10 @@ def detect(opt, second_classifier):
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Write results
-                for *xyxy, conf, cls in reversed(det):
+                for *xyxy, conf, cat_id, ood_scr, cls in reversed(det):
+                    xyxy = (torch.tensor(xyxy).view(1, 4).to(torch.int32)).view(-1).tolist()
                     if opt.save_txt:  # Write to file
-                        xyxy = (torch.tensor(xyxy).view(1, 4).to(torch.int32)).view(-1).tolist()
-                        line = (cls, *xyxy, conf)  # label format
+                        line = (cls, *xyxy, conf, cat_id)  # label format
                         with open(txt_path + '.txt', 'a') as f:
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
@@ -168,6 +183,14 @@ def detect(opt, second_classifier):
                         label = f'{names[int(cls)]} {conf:.2f}'
                         plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
 
+                    if opt.save_boundary_data and (low_bound < ood_scr < up_bound):
+                        jdict.append({'image_id': p.stem,
+                                    'category_id': int(cat_id.item()),
+                                    'bbox': [round(x, 3) for x in xyxy],
+                                    'score': round(conf.item(), 5),
+                                    'is_known': -1})  
+                        Image.fromarray(im0[:,:,[2,1,0]]).save(bnd_img_path)
+                
             if opt.draw_interm:
                 im0 = Image.blend(Image.fromarray(BIN_COLORS[ground_sky_bin[0]]), Image.fromarray(im0), 0.6)
 
@@ -208,6 +231,12 @@ def detect(opt, second_classifier):
                     im0 = Image.fromarray(im0[:,:,[2,1,0]]) if isinstance(im0, np.ndarray) else im0
                     im0.save(save_path)
                     print(f" The image with the result is saved in: {save_path}")
+            
+        if opt.save_boundary_data and len(jdict):
+            print('saving %s...' % bnd_json)
+            with open(bnd_json, 'w') as f:
+                json.dump(jdict, f)
+
         if break_point:
             break
 
@@ -250,7 +279,8 @@ def get_args():
     parser.add_argument('--iou-thres', type=float, default=0.001, help='IOU threshold for NMS')
     parser.add_argument('--device', default='0', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
-    parser.add_argument('--save-txt', default=True, help='save results to *.txt')
+    parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--save-boundary-data', action='store_true', help='save boundary data')
     parser.add_argument('--calc-performance', action='store_true', help='save results to preds.json')
     parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
