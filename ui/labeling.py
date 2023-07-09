@@ -5,11 +5,7 @@ import shutil
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt
-from utils import load_json
-
-root_path = os.path.join(os.getcwd(), os.pardir) if '/yolov7' in os.getcwd() else os.getcwd()
-root_path = root_path if 'Yolo-Seg-OOD' in root_path else os.path.join(root_path, 'Yolo-Seg-OOD')
-sys.path.append(root_path)
+from utils import load_json, save_json
 
 
 class LabelingTool(QWidget):
@@ -165,18 +161,14 @@ class LabelingTool(QWidget):
                 shutil.copy2(image_path, dest_path)
             
             else:
-                if img_fname not in unlabel_imgs:
-                    unlabel_imgs.append(img_fname)
+                unlabel_imgs.append(img_fname)
                 unlabel_items.append(item)
         
-        known_json = os.path.join(self.known_data_dir, "yolov7_preds/yolov7_predictions.json")
-        with open(known_json, "w") as file:
-            json.dump(self.known_data_list, file)
-
+        unlabel_imgs = set(unlabel_imgs)
         self.boundary_list = unlabel_items
-        boundary_json = os.path.join(self.boundary_dir, "yolov7_preds/yolov7_predictions.json")
-        with open(boundary_json, "w") as file:
-            json.dump(self.boundary_list, file)
+        
+        save_json(self.boundary_list, self.boundary_dir)
+        save_json(self.known_data_list, self.known_data_dir)
 
         for img_fname in os.listdir(os.path.join(self.boundary_dir, "images")):
             if img_fname not in unlabel_imgs:
