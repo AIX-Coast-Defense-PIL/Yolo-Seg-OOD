@@ -128,9 +128,10 @@ def convert_annForm_img2bbox(img_infos):
     # img_infos = list(img_infos.items())
     for img_id in img_infos.keys():
         for bbox in img_infos[img_id]['bboxes']:
-            bbox_info = {"image_id": img_id, "category_id": None, "bbox": [], "score": None}
+            bbox_info = {"image_id": img_id, "category_id": None, "bbox": [], "score": None, "is_known": -1}
             bbox_info['category_id'] = bbox['category_id']
             bbox_info['score'] = bbox['score']
+            bbox_info['is_known'] = bbox['is_known']
             bbox_info['bbox'] = [bbox['xtl'], bbox['ytl'], bbox['xbr'], bbox['ybr']]
             bbox_infos.append(bbox_info)
     return bbox_infos
