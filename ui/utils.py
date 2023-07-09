@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 
 WINDOW_TITLE = {'seg': 'Train (Segmentation)',
@@ -37,7 +38,6 @@ def editFile(file_path, find, replacement):
         f.write(s)
     return file_path
 
-
 def createDataYaml(data_dir):
     dir_name = data_dir.split('/')[-1]
     yaml_path = os.path.join(data_dir, f'{dir_name}.yaml')
@@ -48,3 +48,21 @@ def createDataYaml(data_dir):
             f'test: {data_dir}/images/')
     
     return yaml_path, dir_name
+
+def load_json(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(os.path.join(dir_path, 'images'), exist_ok=True)
+        os.makedirs(os.path.join(dir_path, 'yolov7_preds'), exist_ok=True)
+        return []
+
+    json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_preds_refined.json')
+    if not os.path.exists(json_path):
+        json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_predictions.json')
+
+    if os.path.exists(json_path):
+        with open(json_path, 'rb') as file:
+            json_dict = json.load(file)
+    else: json_dict = []
+
+    return json_dict
+
