@@ -44,13 +44,14 @@ BIN_COLORS = np.array([
 
 
 def detect(opt, second_classifier):
-    save_img = not opt.nosave and not opt.source.endswith('.txt')  # save inference images
+    save_img = not opt.no_save and not opt.source.endswith('.txt')  # save inference images
     webcam = opt.source.isnumeric() or opt.source.endswith('.txt') or opt.source.lower().startswith(
         ('rtsp://', 'rtmp://', 'http://', 'https://'))
 
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
-    (save_dir / 'labels' if opt.save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    if opt.save_txt or save_img:
+        (save_dir / 'labels' if opt.save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     bnd_dir = Path('./ood/datasets/boundary_data')
     bnd_json = str(bnd_dir / 'yolov7_preds/yolov7_predictions.json')
     if opt.save_boundary_data:
@@ -282,7 +283,7 @@ def get_args():
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
     parser.add_argument('--save-boundary-data', action='store_true', help='save boundary data')
     parser.add_argument('--calc-performance', action='store_true', help='save results to preds.json')
-    parser.add_argument('--nosave', action='store_true', help='do not save images/videos')
+    parser.add_argument('--no-save', action='store_true', help='do not save images/videos')
     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --class 0, or --class 0 2 3')
     parser.add_argument('--agnostic-nms', default=True, help='class-agnostic NMS')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
