@@ -149,53 +149,48 @@ class ResultWindow(QWidget):
     def initUI(self):
         self.setWindowTitle(WINDOW_TITLE[self.task] + ' Results')
 
-        layout = QVBoxLayout(self)
+        self.progress_bar = QProgressBar()
 
-        progress_layout = QVBoxLayout()
-        progress_layout.setAlignment(Qt.AlignCenter)
+        self.toggle_button = QPushButton("▼ 자세히")
+        self.toggle_button.setCheckable(True)
+        self.toggle_button.setChecked(False)
+        self.toggle_button.clicked.connect(self.toggle_output)
 
         if self.task == 'ood':
             self.label = QLabel("<span style='color: black'>진행 상황 </span>"
                             f"<span style='color: blue'>(1/{self.num_script}):</span>")
         else:
             self.label = QLabel("진행 상황:")
-        progress_layout.addWidget(self.label)
-
-        bar_layout = QHBoxLayout()
-
-        self.progress_bar = QProgressBar()
-        bar_layout.addWidget(self.progress_bar)
-
-        self.toggle_button = QPushButton("▼ 자세히")
-        self.toggle_button.setCheckable(True)
-        self.toggle_button.setChecked(False)
-        bar_layout.addWidget(self.toggle_button)
-
-        progress_layout.addLayout(bar_layout)
 
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
         self.output_text.hide()
-        progress_layout.addWidget(self.output_text)
 
         self.complete_text = QLabel('')
         self.complete_text.setAlignment(Qt.AlignCenter)
-        progress_layout.addWidget(self.complete_text)
-
-        layout.addLayout(progress_layout)
 
         self.close_button = QPushButton("창 닫기")
         self.close_button.setEnabled(False)
+        self.close_button.clicked.connect(self.close)
+
+        bar_layout = QHBoxLayout()
+        bar_layout.addWidget(self.progress_bar)
+        bar_layout.addWidget(self.toggle_button)
+
+        progress_layout = QVBoxLayout()
+        progress_layout.setAlignment(Qt.AlignCenter)
+        progress_layout.addWidget(self.label)
+        progress_layout.addLayout(bar_layout)
+        progress_layout.addWidget(self.output_text)
+        progress_layout.addWidget(self.complete_text)
+
+        layout = QVBoxLayout(self)
+        layout.addLayout(progress_layout)
         layout.addWidget(self.close_button)
 
         self.thread = None
-
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_output)
-
-        self.toggle_button.clicked.connect(self.toggle_output)
-        self.close_button.clicked.connect(self.close)
-
         self.thread_error_occurred = False
 
         self.resize(600, 200)
