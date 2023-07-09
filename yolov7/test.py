@@ -379,4 +379,4 @@ if __name__ == '__main__':
         os.system('zip -r study.zip study_*.txt')
         plot_study_txt(x=x)  # plot
     
-    print("YOLO-v7 prediction Done! \n")
+    print("\nYOLO-v7 prediction Done! \n")
