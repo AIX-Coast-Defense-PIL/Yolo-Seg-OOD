@@ -53,7 +53,7 @@ def convert_txt_to_json(origin_dir_path, destination_dir_path):
             txt_files = file.read().split('\n')[:-1]
             for txt_file in txt_files:
                 bboxes = txt_file.split(' ')
-                box_info = {'label':int(bboxes[0]), 'xtl':min(int(bboxes[1]), int(bboxes[3])), 'ytl':min(int(bboxes[2]), int(bboxes[4])), 'xbr':max(int(bboxes[1]), int(bboxes[3])), 'ybr':max(int(bboxes[2]), int(bboxes[4])), 'score': float(bboxes[5])}
+                box_info = {'label':int(bboxes[0]), 'xtl':min(int(bboxes[1]), int(bboxes[3])), 'ytl':min(int(bboxes[2]), int(bboxes[4])), 'xbr':max(int(bboxes[1]), int(bboxes[3])), 'ybr':max(int(bboxes[2]), int(bboxes[4])), 'score': float(bboxes[5]), 'category_id': int(bboxes[6])}
                 img_info['bboxes'].append(box_info)
                     
         save_format[img_id] = img_info
