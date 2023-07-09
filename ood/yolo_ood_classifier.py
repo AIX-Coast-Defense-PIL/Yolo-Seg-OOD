@@ -13,6 +13,7 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, ood_thres,
 
     for b_idx, (yolo_pred, filter_mask) in enumerate(zip(yolo_preds, filter_masks)):  # per image
         if yolo_pred is not None and len(yolo_pred):
+            device = yolo_pred.device
             yolo_pred = yolo_pred.clone()
 
             # Reshape and pad cutouts
@@ -42,15 +43,18 @@ def yolo_ood_classifier(yolo_preds, filter_masks, fe_model, cluster, ood_thres,
                     ims.append(im)
                     unfiltered_idx.append(idx)
             
+            ood_scr = torch.Tensor([-1]*len(yolo_preds[b_idx]))
             pred_cls = torch.Tensor([2]*len(yolo_preds[b_idx]))
             if len(ims):
                 # ood classify
-                feats = fe_model(torch.Tensor(ims).to(yolo_pred.device))  # classifier prediction
+                feats = fe_model(torch.Tensor(ims).to(device))  # classifier prediction
                 feats = feats.data.cpu().numpy()
                 ood_scores = calc_distance_score(cluster, feats, score_matrix, 'test', cov_matrix_path)
+                ood_scr[unfiltered_idx] = torch.Tensor(ood_scores)
                 pred_cls[unfiltered_idx] = torch.Tensor([0 if ood_score > ood_thres else 1 for ood_score in ood_scores])
             
-            # x[i][:, 4] = torch.Tensor(ood_scores) # change conf to ood_scores
-            yolo_preds[b_idx][:, 5] = pred_cls
+            ood_scr = torch.unsqueeze(ood_scr, 1).to(device)
+            pred_cls = torch.unsqueeze(pred_cls, 1).to(device)
+            yolo_preds[b_idx] = torch.cat([yolo_preds[b_idx], ood_scr, pred_cls], dim=1)
 
     return yolo_preds
