@@ -169,7 +169,7 @@ def main():
 
     predict(args)
 
-    print("YOLO-v7 prediction filtering Done! \n")
+    print("\nYOLO-v7 prediction filtering Done! \n")
 
 if __name__ == '__main__':
     main()
