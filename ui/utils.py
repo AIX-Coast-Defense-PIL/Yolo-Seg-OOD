@@ -66,3 +66,7 @@ def load_json(dir_path):
 
     return json_dict
 
+def save_json(contents, dir_path):
+    json_path = os.path.join(dir_path, "yolov7_preds/yolov7_predictions.json")
+    with open(json_path, "w") as file:
+        json.dump(contents, file)
