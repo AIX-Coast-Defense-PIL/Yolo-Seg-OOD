@@ -20,15 +20,19 @@ class LabelingTool(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("이미지 라벨링 도구")
+        self.setWindowTitle("Labeling Tool")
 
-        self.image_label = QLabel(self)
-        self.image_label.setFixedSize(self.img_size, self.img_size)
+        self.raw_image = QLabel(self)
+        self.raw_image.setFixedSize(self.img_size, self.img_size)
+        self.raw_title = QLabel('[ 원본 이미지 ]')
+        self.raw_title.setAlignment(Qt.AlignCenter)
 
-        self.reference_label = QLabel(self)
-        self.reference_label.setFixedSize(self.img_size, self.img_size)
+        self.patch_image = QLabel(self)
+        self.patch_image.setFixedSize(self.img_size, self.img_size)
+        self.patch_title = QLabel('[ 박스 영역 확대 이미지 ]')
+        self.patch_title.setAlignment(Qt.AlignCenter)
 
-        self.no_image = QLabel('test')
+        self.no_image = QLabel('Test')
         self.no_image.setFixedSize(self.img_size, self.img_size)
         self.no_image.setAlignment(Qt.AlignCenter)
 
@@ -52,8 +56,16 @@ class LabelingTool(QWidget):
 
         image_layout = QHBoxLayout()
         if len(self.boundary_list):
-            image_layout.addWidget(self.image_label)
-            image_layout.addWidget(self.reference_label)
+            raw_layout = QVBoxLayout()
+            raw_layout.addWidget(self.raw_image)
+            raw_layout.addWidget(self.raw_title)
+
+            patch_layout = QVBoxLayout()
+            patch_layout.addWidget(self.patch_image)
+            patch_layout.addWidget(self.patch_title)
+
+            image_layout.addLayout(raw_layout)
+            image_layout.addLayout(patch_layout)
             self.show_current_image()
         else:
             image_layout.addWidget(self.no_image)
@@ -106,8 +118,9 @@ class LabelingTool(QWidget):
         painter.drawRect(*bbox_xywh)
         painter.end()
 
-        self.image_label.setPixmap(pixmap.scaled(self.img_size, self.img_size))
-        self.reference_label.setPixmap(cropped_pixmap.scaled(self.img_size, self.img_size, Qt.KeepAspectRatio))
+        self.raw_image.setPixmap(pixmap.scaled(self.img_size, self.img_size))
+        self.patch_image.setPixmap(cropped_pixmap.scaled(self.img_size, self.img_size, Qt.KeepAspectRatio))
+        self.raw_title.setText(f"[ 원본 이미지 ({img_id + '.jpg'}) ]")
             
         if self.current_image_index == 0:
             self.prev_button.setEnabled(False)
@@ -166,7 +179,7 @@ class LabelingTool(QWidget):
         
         unlabel_imgs = set(unlabel_imgs)
         self.boundary_list = unlabel_items
-        
+
         save_json(self.boundary_list, self.boundary_dir)
         save_json(self.known_data_list, self.known_data_dir)
 
@@ -178,8 +191,6 @@ class LabelingTool(QWidget):
         self.current_image_index = 0
         self.update_json_list()
         self.show_current_image()
-        
-        print("Annotations saved.")
 
     def label_image(self, label):
         if len(self.boundary_list):
