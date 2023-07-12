@@ -156,7 +156,8 @@ def detect(opt, second_classifier):
 
             p = Path(p)  # to Path
             img_dir = os.path.join(save_dir, 'images')
-            os.makedirs(img_dir, exist_ok=True)
+            if save_img:
+                os.makedirs(img_dir, exist_ok=True)
             save_path = os.path.join(img_dir, p.name.split('.')[0]+'.jpg') # img.jpg
             video_path = str(save_dir / 'video')
             txt_path = str(save_dir / 'labels' / p.stem)  # img.txt
