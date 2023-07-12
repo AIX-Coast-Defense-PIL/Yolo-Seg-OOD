@@ -1,4 +1,4 @@
-data_dir=./data_example
+data_dir=./ood/datasets/known_data
 
 python utils/refine.py \
 --dataset_dir $data_dir \
