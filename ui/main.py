@@ -25,7 +25,7 @@ class MainWindow(QMainWindow):
         self._createStatusBar()
         self.setWindowTitle('Unknown Object detection')
 
-        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_window.png'))
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_P.png'))
         self.setWindowIcon(QIcon(str(icon_path[0])))
         
         self.resize(400, 400)
@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         self.sbText = QLabel('2023, Developed by PIL')
         self.sbIcon = QLabel()
 
-        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_status.jpg'))
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_PIL.jpg'))
         self.sbIcon.setPixmap(QPixmap(str(icon_path[0])).scaled(48,14))
 
         self.statusBar.addPermanentWidget(self.sbText)

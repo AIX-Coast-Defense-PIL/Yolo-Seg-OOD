@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import shutil
+import pathlib
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import Qt
@@ -54,6 +55,11 @@ class LabelingTool(QWidget):
         self.unknown_button.clicked.connect(lambda: self.label_image("Unknown"))
         self.save_button.clicked.connect(self.save_button_clicked)
 
+        self.description = QLabel('description')
+        self.description.setLineWidth(3)
+        self.description.setFrameShape(QFrame.StyledPanel)
+        self.description.setFrameShadow(QFrame.Sunken)
+        
         image_layout = QHBoxLayout()
         if len(self.boundary_list):
             raw_layout = QVBoxLayout()
@@ -75,28 +81,40 @@ class LabelingTool(QWidget):
             self.unknown_button.setEnabled(False)
             self.save_button.setEnabled(False)
 
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(self.prev_button)
-        button_layout.addWidget(self.next_button)
+        move_layout = QHBoxLayout()
+        move_layout.addWidget(self.prev_button)
+        move_layout.addWidget(self.next_button)
 
-        label_layout = QVBoxLayout()
-        label_layout.addStretch(5)
-        label_layout.addWidget(self.known_button)
-        label_layout.addWidget(self.unknown_button)
-        label_layout.addStretch(1)
-        label_layout.addLayout(button_layout)
-        label_layout.addStretch(4)
-        label_layout.addWidget(self.save_button)
+        button_layout = QVBoxLayout()
+        button_layout.addStretch(5)
+        button_layout.addWidget(self.known_button)
+        button_layout.addWidget(self.unknown_button)
+        button_layout.addStretch(1)
+        button_layout.addLayout(move_layout)
+        button_layout.addStretch(4)
+        button_layout.addWidget(self.save_button)
 
         spacer_item = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Preferred)
-        label_layout.addSpacerItem(spacer_item)
-
+        button_layout.addSpacerItem(spacer_item)
 
         main_layout = QHBoxLayout()
         main_layout.addLayout(image_layout)
-        main_layout.addLayout(label_layout)
+        main_layout.addLayout(button_layout)
+        
+        text_layout = QVBoxLayout()
+        text_layout.addWidget(self.description)
+        text_layout.addLayout(main_layout)
 
-        self.setLayout(main_layout)
+        self.setLayout(text_layout)
+        icon_path = sorted(pathlib.Path('.').glob('**/pil_logo_L.jpg'))
+        self.setWindowIcon(QIcon(str(icon_path[0])))
+        self.center()
+    
+    def center(self):
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
     
     def update_json_list(self):
         self.boundary_list = load_json(self.boundary_dir)
