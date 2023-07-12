@@ -127,19 +127,13 @@ class TabWidget(QWidget):
     
     def editShellOod(self):
         if self.data_folder is not None:
-            yaml_path, dir_name = createDataYaml(self.data_folder)
-            infer_yolo_path = editFile("./shell/infer_yolo.sh", "--data ./data_example/data_example.yaml",
-                                    f"--data {yaml_path}")
-            infer_yolo_path = editFile(infer_yolo_path, "--project ./data_example",
-                                    f"--project {self.data_folder}")
-                                    
-            filter_preds_path = editFile("./shell/filter_yolo_preds.sh", "data_dir=./data_example",
+            refine_preds_path = editFile("./shell/refine_yolo_preds.sh", "data_dir=./data_example",
                                     f"data_dir={self.data_folder}")
             
             train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--add_train_data None",
                                     f"--add_train_data {self.data_folder}")
             
-        return [infer_yolo_path, filter_preds_path, train_cluster_path]
+        return [refine_preds_path, train_cluster_path]
     
     def editShellTest(self, script_path):
         if self.data_folder is not None:
@@ -157,16 +151,17 @@ class TabWidget(QWidget):
             script_path = editFile(script_path, "--ood-thres 18", 
                                 f"--ood-thres {self.cb_oths}")
         
-        new_threshold = "./ood/cache/threshold/kmeans_resnet50_seaships_*.json"
-        if glob.glob(new_threshold):
+        new_threshold_path = "./ood/cache/threshold/kmeans_resnet50_seaships_*.json"
+        new_threshold = glob.glob(new_threshold_path)
+        if new_threshold:
             script_path = editFile(script_path, "--threshold_path ./ood/cache/threshold/kmeans_resnet50_seaships.json",
-                                f"--threshold_path {new_threshold}")
+                                f"--threshold_path {new_threshold[0]}")
         
-        new_cluster = "./ood/cache/cluster/kmeans_resnet50_seaships_*.pkl" 
-        if glob.glob(new_cluster):
+        new_cluster_path = "./ood/cache/cluster/kmeans_resnet50_seaships_*.pkl"
+        new_cluster = glob.glob(new_cluster_path)
+        if new_cluster:
             script_path = editFile(script_path, "--cluster_path ./ood/cache/cluster/kmeans_resnet50_seaships.pkl",
-                                f"--cluster_path {new_cluster}")
-        
+                                f"--cluster_path {new_cluster[0]}")
         
         return [script_path]
 
