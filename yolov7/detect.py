@@ -53,7 +53,7 @@ def detect(opt, second_classifier):
     if opt.save_txt or save_img:
         (save_dir / 'labels' if opt.save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     bnd_dir = Path('./ood/datasets/boundary_data')
-    bnd_json = str(bnd_dir / 'yolov7_preds/yolov7_predictions.json')
+    bnd_json = str(bnd_dir / 'yolov7_preds/yolov7_preds_filtered.json')
     if opt.save_boundary_data:
         if os.path.exists(bnd_json):
             with open(bnd_json, 'rb') as file:
@@ -92,7 +92,7 @@ def detect(opt, second_classifier):
     cluster = second_classifier['cluster']
     second_classify = second_classifier['pred_func']
     ood_thres_dict = second_classifier['thresholds']
-    bnd_thres = 40
+    bnd_thres = 50
     low_bound = ood_thres_dict[f"{max(1, int(opt.ood_thres)-bnd_thres)}%"]
     up_bound = ood_thres_dict[f"{min(100, int(opt.ood_thres)+bnd_thres)}%"]
 
@@ -105,6 +105,7 @@ def detect(opt, second_classifier):
         dataset = LoadStreams(opt.source, img_size=imgsz, stride=stride)
     else:
         dataset = LoadImages(opt.source, img_size=imgsz, stride=stride)
+        print('The number of test datasets: ', len(dataset))
 
     # Get names and colors
     names = ['unknown', 'known', 'filtered']
@@ -118,7 +119,7 @@ def detect(opt, second_classifier):
     time_records, windows = [], []
     break_point = False
     
-    for path, img, im0s, vid_cap in dataset:
+    for img_i, [path, img, im0s, vid_cap] in enumerate(dataset):
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -151,7 +152,7 @@ def detect(opt, second_classifier):
             if webcam:  # batch_size >= 1
                 p, s, im0, frame = path[i], '%g: ' % i, im0s[i].copy(), dataset.count
             else:
-                p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
+                p, s, im0, frame = path, f'[{img_i}/{len(dataset)}] ', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
             img_dir = os.path.join(save_dir, 'images')
@@ -232,11 +233,6 @@ def detect(opt, second_classifier):
                     im0 = Image.fromarray(im0[:,:,[2,1,0]]) if isinstance(im0, np.ndarray) else im0
                     im0.save(save_path)
                     print(f" The image with the result is saved in: {save_path}")
-            
-        if opt.save_boundary_data and len(jdict):
-            print('saving %s...' % bnd_json)
-            with open(bnd_json, 'w') as f:
-                json.dump(jdict, f)
 
         if break_point:
             break
@@ -246,6 +242,11 @@ def detect(opt, second_classifier):
     if opt.save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if opt.save_txt else ''
         #print(f"Results saved to {save_dir}{s}")
+        
+    if opt.save_boundary_data and len(jdict):
+        print('saving %s...' % bnd_json)
+        with open(bnd_json, 'w') as f:
+            json.dump(jdict, f)
     
     if opt.calc_performance:
         # save json

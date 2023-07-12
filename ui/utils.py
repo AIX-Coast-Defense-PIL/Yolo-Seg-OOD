@@ -55,9 +55,9 @@ def load_json(dir_path):
         os.makedirs(os.path.join(dir_path, 'yolov7_preds'), exist_ok=True)
         return []
 
-    json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_preds_refined.json')
+    json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_preds_filtered_refined.json')
     if not os.path.exists(json_path):
-        json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_predictions.json')
+        json_path = os.path.join(dir_path, 'yolov7_preds/yolov7_preds_filtered.json')
 
     if os.path.exists(json_path):
         with open(json_path, 'rb') as file:
@@ -67,6 +67,6 @@ def load_json(dir_path):
     return json_dict
 
 def save_json(contents, dir_path):
-    json_path = os.path.join(dir_path, "yolov7_preds/yolov7_predictions.json")
+    json_path = os.path.join(dir_path, "yolov7_preds/yolov7_preds_filtered.json")
     with open(json_path, "w") as file:
         json.dump(contents, file)
