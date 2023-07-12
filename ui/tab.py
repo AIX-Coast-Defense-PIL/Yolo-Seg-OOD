@@ -56,8 +56,14 @@ class TabWidget(QWidget):
     
         folderOpenButton = QPushButton('Open Folder',self)
         folderOpenButton.clicked.connect(self.folderButtonClicked)
-        # layout.addWidget(folderOpenButton)
         layout.addRow(f"- File:", folderOpenButton)
+        
+        if self.task == 'test':
+            self.rtspAddressInput = QLineEdit()
+            self.rtspAddressInput.setPlaceholderText("Enter RTSP address (ex. rtsp://@:1234)")
+            self.rtspAddressInput.returnPressed.connect(self.serverAddressEntered)
+            layout.addRow("- RTSP:", self.rtspAddressInput)
+
         self.folderText = QLabel('')
         layout.addWidget(self.folderText)
         
@@ -91,6 +97,11 @@ class TabWidget(QWidget):
         self.folderText.setText(f"'{self.data_folder}'")
         self.folderText.setStyleSheet("color: blue;")
 
+    def serverAddressEntered(self):
+        self.data_folder = self.rtspAddressInput.text()
+        self.folderText.setText(f"'{self.data_folder}'")
+        self.folderText.setStyleSheet("color: blue;")
+    
     def startButton(self):
         button = QPushButton("Start", self)
         button.clicked.connect(self.startButtonClicked)
