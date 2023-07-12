@@ -2,6 +2,7 @@ import glob
 from PyQt5.QtWidgets import *
 from result import ResultWindow
 from utils import *
+import time
 
 
 class TabWidget(QWidget):
@@ -11,6 +12,7 @@ class TabWidget(QWidget):
         self.data_folder = None
         self.cb_epoch = None
         self.cb_llmbd = None
+        self.cb_nclst = None
         self.cb_yths = None
         self.cb_oths = None
         self.initUI()
@@ -21,11 +23,11 @@ class TabWidget(QWidget):
         vbox.addStretch(1)
         vbox.addWidget(self.createDescriptionGroup())
         vbox.addStretch(1)
-        vbox.addWidget(self.createDatasetGroup())
-        vbox.addStretch(1)
         if self.task != 'ood':
-            vbox.addWidget(self.createHyperparamGroup())
+            vbox.addWidget(self.createDatasetGroup())
             vbox.addStretch(1)
+        vbox.addWidget(self.createHyperparamGroup())
+        vbox.addStretch(1)
         
         hbox = QHBoxLayout()
         hbox.addStretch(1)
@@ -54,7 +56,8 @@ class TabWidget(QWidget):
     
         folderOpenButton = QPushButton('Open Folder',self)
         folderOpenButton.clicked.connect(self.folderButtonClicked)
-        layout.addWidget(folderOpenButton)
+        # layout.addWidget(folderOpenButton)
+        layout.addRow(f"- File:", folderOpenButton)
         self.folderText = QLabel('')
         layout.addWidget(self.folderText)
         
@@ -68,7 +71,8 @@ class TabWidget(QWidget):
         layout = QFormLayout()
         
         cbAct = {'seg': {'Epochs': self.onActivatedEpoch, 'Loss Lambda': self.onActivatedLossLmbd},
-                      'test': {'YOLO Threshold': self.onActivatedYoloThs, 'OOD Threshold': self.onActivatedOodThs}}
+                 'ood': {'The number of clusters': self.onActivatedCluster},
+                 'test': {'YOLO Threshold': self.onActivatedYoloThs, 'OOD Threshold': self.onActivatedOodThs}}
         
         for hpDict in CB_OPTIONS[self.task]:
             name = hpDict['name']
@@ -97,16 +101,16 @@ class TabWidget(QWidget):
 
         if self.task == 'seg':
             script_path = self.editShellSeg(script_path)
-            
         elif self.task == 'ood':
-            script_path = self.editShellOod()
-
+            script_path = self.editShellOod(script_path)
         elif self.task == 'test':
             script_path = self.editShellTest(script_path)
         
-        self.result_window = ResultWindow(self.task, len(script_path))
+        self.result_window = ResultWindow(self.task)
         self.result_window.show()
         self.result_window.start_script(script_path)
+        
+        self.window().close()
     
     def editShellSeg(self, script_path):
         if self.data_folder is not None:
@@ -125,15 +129,12 @@ class TabWidget(QWidget):
                                 f"--separation_loss {self.cb_llmbd}")
         return [script_path]
     
-    def editShellOod(self):
-        if self.data_folder is not None:
-            refine_preds_path = editFile("./shell/refine_yolo_preds.sh", "data_dir=./data_example",
-                                    f"data_dir={self.data_folder}")
-            
-            train_cluster_path = editFile("./shell/train_ood_cluster.sh", "--add_train_data None",
-                                    f"--add_train_data {self.data_folder}")
-            
-        return [refine_preds_path, train_cluster_path]
+    def editShellOod(self, script_path):
+        if self.cb_nclst is not None:
+            script_path = editFile(script_path, "--num_cluster 5", 
+                                f"--num_cluster {self.cb_nclst}")
+        
+        return ["./shell/refine_yolo_preds.sh", script_path]
     
     def editShellTest(self, script_path):
         if self.data_folder is not None:
@@ -170,6 +171,9 @@ class TabWidget(QWidget):
 
     def onActivatedLossLmbd(self, text):
         self.cb_llmbd = text.replace(' (Default)', '')
+    
+    def onActivatedCluster(self, text):
+        self.cb_nclst = text.replace(' (Default)', '')
         
     def onActivatedYoloThs(self, text):
         self.cb_yths = text.replace(' (Default)', '')

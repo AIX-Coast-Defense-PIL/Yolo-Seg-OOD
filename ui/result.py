@@ -1,5 +1,6 @@
 import os
 import sys
+import glob
 import time
 import subprocess
 import numpy as np
@@ -47,10 +48,7 @@ class ShellScriptThread(QThread):
             if self.task == 'seg':
                 self.update_grogress_train_seg(line)
             elif self.task == 'ood':
-                if 'refine_yolo' in self.command:
-                    self.update_grogress_refine_preds(line)
-                elif 'train_ood_cluster' in self.command:
-                    self.update_grogress_train_cluster(line)
+                self.update_grogress_train_ood(line)
             elif self.task == 'test':
                 self.update_grogress_test(line)
             
@@ -79,14 +77,11 @@ class ShellScriptThread(QThread):
             progress = 5 * (1 - (1.6)**(-self.completed_lines/5))
             self.progress_updated.emit(progress)
     
-    def update_grogress_refine_preds(self, line):
-        ## refine_yolo_preds.sh
+    def update_grogress_train_ood(self, line):
+        ## refine_yolo_preds.sh & train_ood_cluster.sh
         if 'YOLO-v7 prediction refining Done!' in line:
             self.progress_updated.emit(10)
-
-    def update_grogress_train_cluster(self, line):
-        ## train_ood_cluster.sh
-        if 'Loaded thresholds from' in line:
+        elif 'Loaded thresholds from' in line:
             self.progress_updated.emit(50)
         elif 'ood thresholds : ' in line:
             self.progress_updated.emit(80)
@@ -95,7 +90,11 @@ class ShellScriptThread(QThread):
             self.progress_updated.emit(100)
 
     def update_grogress_test(self, line):
-        if 'The number of test datasets:' in line:
+        ## infer_whole.sh
+        if 'Model Summary:' in line:
+            self.progress_updated.emit(10)
+            
+        elif 'The number of test datasets:' in line:
             self.num_datasets = int(line.split('  ')[1])
 
         elif (self.num_datasets != 0) and (f'/{self.num_datasets}' in line):
@@ -109,11 +108,9 @@ class ShellScriptThread(QThread):
 
 
 class ResultWindow(QWidget):
-    def __init__(self, task, num_script):
+    def __init__(self, task):
         super().__init__()
-        self.ood_progress = 0
         self.task = task
-        self.num_script = num_script
         self.initUI()
 
     def initUI(self):
@@ -126,11 +123,7 @@ class ResultWindow(QWidget):
         self.toggle_button.setChecked(False)
         self.toggle_button.clicked.connect(self.toggle_output)
 
-        if self.task == 'ood':
-            self.label = QLabel("<span style='color: black'>진행 상황 </span>"
-                            f"<span style='color: blue'>(1/{self.num_script}):</span>")
-        else:
-            self.label = QLabel("진행 상황:")
+        self.label = QLabel("진행 상황:")
 
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
@@ -164,8 +157,7 @@ class ResultWindow(QWidget):
         self.thread_error_occurred = False
 
         self.resize(600, 200)
-        self.center(40)
-
+        # self.center(40)
 
     def center(self, mv=0):
         qr = self.frameGeometry()
@@ -195,16 +187,10 @@ class ResultWindow(QWidget):
 
         if value == 100:
             time.sleep(3)
-            self.ood_progress += 1
-            if self.ood_progress != self.num_script:
-                self.label.setText("<span style='color: black'>진행 상황 </span>"
-                                f"<span style='color: blue'>({self.ood_progress+1}/{self.num_script}):</span>")
-                self.progress_bar.setValue(0)
+            if self.task == 'test':
+                self.complete_text.setText("테스트가 완료되었습니다.")
             else:
-                if self.task == 'test':
-                    self.complete_text.setText("테스트가 완료되었습니다.")
-                else:
-                    self.complete_text.setText("학습이 완료되었습니다.")
+                self.complete_text.setText("학습이 완료되었습니다.")
 
     def append_output(self, text):
         self.output_text.append(text)
@@ -240,6 +226,12 @@ class ResultWindow(QWidget):
             self.script_index += 1
             self.execute_script(self.script_path[self.script_index])
     
+    def closeEvent(self, event):
+        file_list = glob.glob( "./shell/*_edit.sh")
+        for f_path in file_list:
+            os.remove(f_path)
+        
+        event.accept()
             
 if __name__ == '__main__':
     app = QApplication(sys.argv)

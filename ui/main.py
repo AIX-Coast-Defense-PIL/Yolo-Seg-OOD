@@ -48,13 +48,7 @@ class MainWindow(QMainWindow):
         cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-    
-    def closeEvent(self, event):
-        file_list = glob.glob( "./shell/*_edit.sh")
-        for f_path in file_list:
-            os.remove(f_path)
-        
-        event.accept()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

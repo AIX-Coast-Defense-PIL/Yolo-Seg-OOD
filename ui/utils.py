@@ -13,11 +13,12 @@ DESCRIPTIONS = {'seg': 'TBA',
 
 CB_OPTIONS = {'seg': [{'name': 'Epochs', 'options': ['100 (Default)', '200', '10']},
                     {'name': 'Loss Lambda', 'options': ['0.01 (Default)', '0.05', '0.1']}],
+            'ood': [{'name': 'The number of clusters', 'options': ['5 (Default)', '7', '10']}],
             'test': [{'name': 'YOLO Threshold', 'options': ['0.05 (Default)', '0.1', '0.2']},
                     {'name': 'OOD Threshold', 'options': ['87 (Default)', '95', '99']}]}
 
 SCRIPT_PATH = {'seg': './shell/train_seg.sh',
-               'ood': './shell/train_ood.sh',
+               'ood': './shell/train_ood_cluster.sh',
                'test': './shell/infer_whole.sh'}
 
 
