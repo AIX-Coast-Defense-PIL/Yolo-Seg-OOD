@@ -161,7 +161,8 @@ def detect(opt, second_classifier):
             save_path = os.path.join(img_dir, p.name.split('.')[0]+'.jpg') # img.jpg
             video_path = str(save_dir / 'video')
             txt_path = str(save_dir / 'labels' / p.stem)  # img.txt
-            bnd_img_path = os.path.join(bnd_dir, 'images', p.name.split('.')[0]+'.jpg') # img.jpg
+            bnd_fname = p.name.split('.')[0]+'_'+str(img_i) if webcam else p.name.split('.')[0]
+            bnd_img_path = os.path.join(bnd_dir, 'images', bnd_fname+'.jpg') # img.jpg
 
             if len(det):
                 # Rescale boxes from img_size to im0 size
@@ -187,7 +188,7 @@ def detect(opt, second_classifier):
                         plot_one_box(xyxy, im0, color=colors[int(cls)], line_thickness=2)
 
                     if opt.save_boundary_data and (low_bound < ood_scr < up_bound):
-                        jdict.append({'image_id': p.stem,
+                        jdict.append({'image_id': bnd_fname,
                                     'category_id': int(cat_id.item()),
                                     'bbox': [round(x, 3) for x in xyxy],
                                     'score': round(conf.item(), 5),
