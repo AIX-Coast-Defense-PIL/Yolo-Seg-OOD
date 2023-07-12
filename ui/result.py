@@ -47,12 +47,12 @@ class ShellScriptThread(QThread):
             if self.task == 'seg':
                 self.update_grogress_train_seg(line)
             elif self.task == 'ood':
-                if 'infer_yolo' in self.command:
-                    self.update_grogress_infer_yolo(line)
-                elif 'filter_yolo' in self.command:
-                    self.update_grogress_filter_preds(line)
+                if 'refine_yolo' in self.command:
+                    self.update_grogress_refine_preds(line)
                 elif 'train_ood_cluster' in self.command:
                     self.update_grogress_train_cluster(line)
+            elif self.task == 'test':
+                self.update_grogress_test(line)
             
         process.wait()
         self.script_finished.emit()
@@ -79,52 +79,10 @@ class ShellScriptThread(QThread):
             progress = 5 * (1 - (1.6)**(-self.completed_lines/5))
             self.progress_updated.emit(progress)
     
-    def update_grogress_infer_yolo(self, line):
-        ## infer_yolo.sh
-        if 'if param.grad is not None:' in line:
-            self.val_min, self.val_max = 5, 30
-            self.completed_lines = 0
-            self.progress_updated.emit(5)
-        
-        elif 'corrupted: ' in line:
-            self.val_min, self.val_max = 30, 100
-            self.completed_lines = 0
-            self.progress_updated.emit(30)
-
-        elif 'mAP@.5:.95:' in line:
-            t = line.split('mAP@.5:.95:')[1][:10]
-            perc = int(t.split('%')[0].lstrip())
-            self.progress_updated.emit(30 + int(perc * 0.7))
-        
-        elif 'YOLO-v7 predictions already exist.' in line:
-            self.progress_updated.emit(90)
-        
-        elif 'YOLO-v7 prediction Done!' in line:
-            self.val_min = 100
-            self.start_infer_yolo = False
-            self.progress_updated.emit(100)
-        
-        else:
-            if self.val_min != 100:
-                progress = int(self.val_min + (self.val_max - self.val_min) / (1 + np.exp(-0.7 * self.completed_lines + 5)))
-                self.progress_updated.emit(progress)
-
-        self.completed_lines += 1
-    
-    def update_grogress_filter_preds(self, line):
-        ## filter_yolo_preds.sh
-        if 'The number of test datasets:' in line:
-            self.num_datasets = int(line.split('  ')[1])
-
-        elif (self.num_datasets != 0) and (f'/{self.num_datasets}' in line):
-            t = int(line.split(f'/{self.num_datasets}')[0])
-            if t != 0:
-                progress = int((t / self.num_datasets) * 100)
-                if progress != 100: self.progress_updated.emit(progress)
-            
-        elif 'YOLO-v7 prediction refining Done!' in line:
-            self.start_filter_preds = False
-            self.progress_updated.emit(100)
+    def update_grogress_refine_preds(self, line):
+        ## refine_yolo_preds.sh
+        if 'YOLO-v7 prediction refining Done!' in line:
+            self.progress_updated.emit(10)
 
     def update_grogress_train_cluster(self, line):
         ## train_ood_cluster.sh
@@ -134,7 +92,19 @@ class ShellScriptThread(QThread):
             self.progress_updated.emit(80)
         
         elif 'OOD cluster (K-Means) train Done!' in line:
-            self.start_train_cluster = False
+            self.progress_updated.emit(100)
+
+    def update_grogress_test(self, line):
+        if 'The number of test datasets:' in line:
+            self.num_datasets = int(line.split('  ')[1])
+
+        elif (self.num_datasets != 0) and (f'/{self.num_datasets}' in line):
+            t = int(line.split(f'/{self.num_datasets}')[0].split('[')[-1])
+            if t != 0:
+                progress = int((t / self.num_datasets) * 100)
+                if progress != 100: self.progress_updated.emit(progress)
+            
+        elif 'mean time per frame :' in line:
             self.progress_updated.emit(100)
 
 
